@@ -1,0 +1,9 @@
+## Folders
+.cache/
+.config/
+.vscode/
+.idea/
+vendor/
+
+## Files
+.DS_Store
