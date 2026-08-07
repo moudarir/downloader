@@ -8,7 +8,8 @@ use Moudarir\Downloader\DownloadConfig;
 use Moudarir\Downloader\Enums\ETagStrategy;
 use Moudarir\Downloader\Exceptions\DownloadException;
 use Moudarir\Downloader\Helpers\CommonHelper;
-use function get_mimes;
+use Moudarir\MimeDetector\Exceptions\MimeTypeException;
+use Moudarir\MimeDetector\MimeType;
 
 final readonly class DownloadFile implements DownloadResource
 {
@@ -135,33 +136,19 @@ final readonly class DownloadFile implements DownloadResource
         return self::SUPPORTED_ETAG_STRATEGIES;
     }
 
+    /**
+     * @throws DownloadException
+     */
     private static function detectMimeType(string $filepath, bool $detectMime): string
     {
         if ($detectMime === false) {
             return DownloadConfig::DEFAULT_MIME;
         }
 
-        if (($finfoOpen = finfo_open(FILEINFO_MIME_TYPE)) !== false) {
-            $finfoFile = finfo_file($finfoOpen, $filepath);
-            finfo_close($finfoOpen);
-
-            if ($finfoFile !== false && $finfoFile !== '') {
-                return strtolower(trim($finfoFile));
-            }
+        try {
+            return MimeType::detect($filepath)->value();
+        } catch (MimeTypeException $exception) {
+            throw DownloadException::generic($exception->getMessage());
         }
-
-        $extension = strtolower(pathinfo($filepath, PATHINFO_EXTENSION));
-
-        if ($extension === '') {
-            return DownloadConfig::DEFAULT_MIME;
-        }
-
-        $mimes =& get_mimes();
-
-        if (array_key_exists($extension, $mimes)) {
-            return is_array($mimes[$extension]) ? $mimes[$extension][0] : $mimes[$extension];
-        }
-
-        return DownloadConfig::DEFAULT_MIME;
     }
 }

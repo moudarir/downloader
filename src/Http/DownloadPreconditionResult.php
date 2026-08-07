@@ -13,7 +13,7 @@ final readonly class DownloadPreconditionResult
     {
     }
 
-    public static function ok(): self
+    public static function proceed(): self
     {
         return new self(PreconditionStatus::OK);
     }

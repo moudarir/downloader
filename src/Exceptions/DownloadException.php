@@ -6,46 +6,57 @@ namespace Moudarir\Downloader\Exceptions;
 
 use Exception;
 
-class DownloadException extends Exception
+final class DownloadException extends Exception
 {
 
-    public static function filepathNotFound(): static
+    public static function filepathNotFound(): self
     {
-        return new static("Le chemin du fichier indiqué est introuvable.");
+        return new self("The specified file path was not found.");
     }
 
-    public static function filesizeIssue(): static
+    public static function filesizeIssue(): self
     {
-        return new static("Erreur lors de la récupération de la taille du fichier.");
+        return new self("Unable to determine the file size.");
     }
 
-    public static function invalidHeaderName(string $name): static
+    public static function invalidHeaderName(string $name): self
     {
-        return new static("Le nom de l'entête `$name` est incorrect.");
+        return new self(sprintf('Invalid HTTP header name "%s".', $name));
     }
 
-    public static function eTagStrategyFailed(string $name): static
+    public static function eTagStrategyFailed(string $strategy): self
     {
-        return new static("Le calcul de l'eTag avec la stratégie `$name` a échoué.");
+        return new self(sprintf("Unable to generate an ETag using the `%s` strategy.", $strategy));
     }
 
-    public static function emptyDataSource(): static
+    public static function emptyDataSource(): self
     {
-        return new static("La source de donnés est vide.");
+        return new self("The data source cannot be empty.");
     }
 
-    public static function filenameRequiredForData(): static
+    public static function filenameRequiredForData(): self
     {
-        return new static("Le nom du fichier est obligatoire pour le téléchargement de données.");
+        return new self("A filename is required when downloading data from memory.");
     }
 
-    public static function operationNotSupportedOnData(string $operation): static
+    public static function operationNotSupportedOnData(string $operation): self
     {
-        return new static("L'opération `$operation` n'est pas supportée lors de la diffusion de données en mémoire.");
+        return new self(sprintf(
+            "The `%s` operation is not supported for in-memory resources.",
+            $operation
+        ));
     }
 
-    public static function noETagStrategySupported(string $resource): static
+    public static function noETagStrategySupported(string $resource): self
     {
-        return new static("La ressource `$resource` ne déclare aucun `ETag strategy` supporté.");
+        return new self(sprintf(
+            "Resource `%s` does not declare any supported ETag strategy.",
+            $resource
+        ));
+    }
+
+    public static function generic(string $message): self
+    {
+        return new self($message);
     }
 }

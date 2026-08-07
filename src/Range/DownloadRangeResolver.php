@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Moudarir\Downloader\Range;
 
 use Moudarir\Downloader\ETag\DownloadETag;
-use Moudarir\Downloader\Helpers\CommonHelper;
+use Moudarir\Downloader\Helpers\HttpDateHelper;
 use Moudarir\Downloader\Http\DownloadRequest;
 use Moudarir\Downloader\Resources\DownloadResource;
 
@@ -56,7 +56,7 @@ final readonly class DownloadRangeResolver
             return false;
         }
 
-        if (($timestamp = CommonHelper::httpDateToTimestamp($ifRange)) === null) {
+        if (($timestamp = HttpDateHelper::toTimestamp($ifRange)) === null) {
             return false;
         }
 

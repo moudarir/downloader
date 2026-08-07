@@ -42,9 +42,17 @@ final readonly class DownloadETag
         return $this->weak;
     }
 
+    /**
+     * RFC 9110 - Entity Tag comparison.
+     *
+     * Performs either a weak or strong comparison depending on the
+     * $weakComparison argument.
+     */
     public function matches(string $clientETagHeader, bool $weakComparison = true): bool
     {
-        if (($clientETagHeader = trim($clientETagHeader)) === '*') {
+        $clientETagHeader = trim($clientETagHeader);
+
+        if ($clientETagHeader === '*') {
             return true;
         }
 
@@ -52,18 +60,23 @@ final readonly class DownloadETag
             return false;
         }
 
-        $tags = array_map('trim', explode(',', $clientETagHeader));
-
-        foreach ($tags as $tag) {
-            $isClientWeak = str_starts_with($tag, 'W/');
+        foreach (explode(',', $clientETagHeader) as $tag) {
+            $tag = trim($tag);
+            $isClientWeak = strncmp($tag, 'W/', 2) === 0;
 
             if (!$weakComparison && $isClientWeak) {
                 continue;
             }
 
-            $opaqueTag = trim($tag, 'W/"');
+            if ($isClientWeak) {
+                $tag = substr($tag, 2);
+            }
 
-            if (hash_equals($this->value, $opaqueTag)) {
+            if (str_starts_with($tag, '"') && str_ends_with($tag, '"')) {
+                $tag = substr($tag, 1, -1);
+            }
+
+            if (hash_equals($this->value, $tag)) {
                 return true;
             }
         }
@@ -86,7 +99,7 @@ final readonly class DownloadETag
             ETagStrategy::MD5,
             ETagStrategy::SHA256,
             ETagStrategy::SHA512 => $resource->getHash($strategy->value),
-            default => self::mtimeStrategy($resource),
+            ETagStrategy::MTIME => self::mtimeStrategy($resource),
         };
 
         if ($result === null) {

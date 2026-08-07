@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Moudarir\Downloader\Http;
 
-use Moudarir\Downloader\DownloadConfig;
 use Moudarir\Downloader\Enums\ContentDisposition;
 use Moudarir\Downloader\ETag\DownloadETag;
 use Moudarir\Downloader\Exceptions\DownloadException;
@@ -13,13 +12,15 @@ use Moudarir\Downloader\Resources\DownloadResource;
 final class DownloadHeaders
 {
 
-    private array $headers = DownloadConfig::COMMON_HEADERS;
+    private array $headers = [];
 
     private int $statusCode = 200;
 
     private ?string $overrideMime = null;
 
     private ContentDisposition $disposition = ContentDisposition::ATTACHMENT;
+    
+    private const string DEFAULT_CACHE_CONTROL = 'private, must-revalidate';
 
     public function __construct(
         private readonly DownloadResource $resource,
@@ -109,7 +110,7 @@ final class DownloadHeaders
 
     public function build(): void
     {
-        http_response_code($this->statusCode);
+        $this->applyDefaultHeaders();
 
         if ($this->statusCode !== 304) {
             $mime = $this->overrideMime ?? $this->resource->getMime();
@@ -119,6 +120,8 @@ final class DownloadHeaders
         foreach ($this->headers as $name => $value) {
             header($name.': '.$value);
         }
+
+        http_response_code($this->statusCode);
     }
 
     /**
@@ -145,6 +148,13 @@ final class DownloadHeaders
         }
 
         return $this;
+    }
+
+    private function applyDefaultHeaders(): void
+    {
+        if (!isset($this->headers['Cache-Control'])) {
+            $this->headers['Cache-Control'] ??= self::DEFAULT_CACHE_CONTROL;
+        }
     }
 
     /**

@@ -3,7 +3,9 @@
 .config/
 .vscode/
 .idea/
+public/
 vendor/
 
 ## Files
 .DS_Store
+composer.lock

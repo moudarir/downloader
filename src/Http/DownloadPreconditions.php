@@ -26,6 +26,22 @@ final readonly class DownloadPreconditions
     {
         $instance = new self($request, $resource, $etag);
 
+        /*
+         * RFC 9110 §13.2.2 defines a strict precedence order for request
+         * preconditions.
+         *
+         * Each evaluation method returns:
+         *
+         *   - null
+         *       The corresponding request header is absent, allowing evaluation
+         *       to continue with the next precondition.
+         *
+         *   - DownloadPreconditionResult
+         *       The request header is present and evaluation is complete.
+         *       The returned status (200, 304 or 412) is final.
+         */
+
+        // RFC 9110: If-Match takes precedence over If-Unmodified-Since.
         if (($result = $instance->evaluateIfMatch()) !== null) {
             return $result;
         }
@@ -34,6 +50,7 @@ final readonly class DownloadPreconditions
             return $result;
         }
 
+        // RFC 9110: If-None-Match takes precedence over If-Modified-Since.
         if (($result = $instance->evaluateIfNoneMatch()) !== null) {
             return $result;
         }
@@ -42,7 +59,7 @@ final readonly class DownloadPreconditions
             return $result;
         }
 
-        return DownloadPreconditionResult::ok();
+        return DownloadPreconditionResult::proceed();
     }
 
     private function evaluateIfMatch(): ?DownloadPreconditionResult
@@ -56,14 +73,12 @@ final readonly class DownloadPreconditions
         }
 
         if ($match === '*') {
-            return DownloadPreconditionResult::ok();
+            return DownloadPreconditionResult::proceed();
         }
 
-        if ($this->etag->matches($match, false)) {
-            return DownloadPreconditionResult::ok();
-        }
-
-        return DownloadPreconditionResult::preconditionFailed();
+        return $this->etag->matches($match, false)
+            ? DownloadPreconditionResult::proceed()
+            : DownloadPreconditionResult::preconditionFailed();
     }
 
     private function evaluateIfUnmodifiedSince(): ?DownloadPreconditionResult
@@ -76,11 +91,9 @@ final readonly class DownloadPreconditions
             return null;
         }
 
-        if ($lastModified <= $since) {
-            return DownloadPreconditionResult::ok();
-        }
-
-        return DownloadPreconditionResult::preconditionFailed();
+        return $lastModified <= $since
+            ? DownloadPreconditionResult::proceed()
+            : DownloadPreconditionResult::preconditionFailed();
     }
 
     private function evaluateIfNoneMatch(): ?DownloadPreconditionResult
@@ -94,11 +107,11 @@ final readonly class DownloadPreconditions
         }
 
         if (!$this->etag->matches($noneMatch)) {
-            return DownloadPreconditionResult::ok();
+            return DownloadPreconditionResult::proceed();
         }
 
         return new DownloadPreconditionResult(
-            $this->request->isGet() || $this->request->isHead()
+            $this->request->isSafeMethod()
                 ? PreconditionStatus::NOT_MODIFIED
                 : PreconditionStatus::PRECONDITION_FAILED
         );
@@ -106,6 +119,18 @@ final readonly class DownloadPreconditions
 
     private function evaluateIfModifiedSince(): ?DownloadPreconditionResult
     {
+        /*
+         * RFC 9110 §13.1.3:
+         * If-Modified-Since is only applicable to GET and HEAD requests.
+         *
+         * DownloadRequest currently only supports GET and HEAD, but this
+         * explicit check documents the RFC requirement and prevents future
+         * regressions if additional HTTP methods are introduced.
+         */
+        if ($this->request->isSafeMethod()) {
+            return null;
+        }
+
         if (($since = $this->request->getIfModifiedSince()) === null) {
             return null;
         }
@@ -114,10 +139,8 @@ final readonly class DownloadPreconditions
             return null;
         }
 
-        if ($lastModified <= $since) {
-            return DownloadPreconditionResult::notModified();
-        }
-
-        return DownloadPreconditionResult::ok();
+        return $lastModified <= $since
+            ? DownloadPreconditionResult::notModified()
+            : DownloadPreconditionResult::proceed();
     }
 }

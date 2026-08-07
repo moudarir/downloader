@@ -1,11 +1,18 @@
 {
   "name": "moudarir/downloader",
-  "description": "Simple and expressive file downloader built.",
-  "version": "1.0.0",
+  "description": "Modern PHP download library with RFC 9110 support.",
   "type": "library",
   "homepage": "https://github.com/moudarir/downloader",
   "license": "MIT",
-  "keywords": ["file download", "x-sendfile", "x-accel-redirect", "stream", "video"],
+  "keywords": [
+    "download",
+    "http",
+    "etag",
+    "range",
+    "stream",
+    "php",
+    "rfc9110"
+  ],
   "authors": [
     {
       "name": "Abdessamad MOUDARIR",
@@ -13,7 +20,8 @@
     }
   ],
   "require": {
-    "php": ">=8.4 <9.0"
+    "php": "^8.4",
+    "moudarir/mime-detector": "^1.0"
   },
   "autoload": {
     "psr-4" : {

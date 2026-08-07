@@ -6,6 +6,7 @@ namespace Moudarir\Downloader\Http;
 
 use Moudarir\Downloader\Enums\RequestMethod;
 use Moudarir\Downloader\Helpers\CommonHelper;
+use Moudarir\Downloader\Helpers\HttpDateHelper;
 
 final readonly class DownloadRequest
 {
@@ -30,8 +31,8 @@ final readonly class DownloadRequest
             CommonHelper::nullIfEmpty($_SERVER['HTTP_IF_RANGE'] ?? ''),
             CommonHelper::nullIfEmpty($_SERVER['HTTP_IF_MATCH'] ?? ''),
             CommonHelper::nullIfEmpty($_SERVER['HTTP_IF_NONE_MATCH'] ?? ''),
-            CommonHelper::httpDateToTimestamp($_SERVER['HTTP_IF_MODIFIED_SINCE'] ?? ''),
-            CommonHelper::httpDateToTimestamp($_SERVER['HTTP_IF_UNMODIFIED_SINCE'] ?? ''),
+            HttpDateHelper::toTimestamp($_SERVER['HTTP_IF_MODIFIED_SINCE'] ?? ''),
+            HttpDateHelper::toTimestamp($_SERVER['HTTP_IF_UNMODIFIED_SINCE'] ?? ''),
         );
     }
 
@@ -48,6 +49,11 @@ final readonly class DownloadRequest
     public function isHead(): bool
     {
         return $this->method === RequestMethod::HEAD;
+    }
+
+    public function isSafeMethod(): bool
+    {
+        return $this->isGet() || $this->isHead();
     }
 
     public function getRange(): ?string
