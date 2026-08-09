@@ -4,28 +4,26 @@ declare(strict_types=1);
 
 namespace Moudarir\Downloader\Http;
 
+use Moudarir\Downloader\DownloadConfig;
 use Moudarir\Downloader\Enums\ContentDisposition;
-use Moudarir\Downloader\ETag\DownloadETag;
 use Moudarir\Downloader\Exceptions\DownloadException;
-use Moudarir\Downloader\Resources\DownloadResource;
 
 final class DownloadHeaders
 {
 
+    /**
+     * @var array<string, string>
+     */
     private array $headers = [];
 
-    private int $statusCode = 200;
-
-    private ?string $overrideMime = null;
-
     private ContentDisposition $disposition = ContentDisposition::ATTACHMENT;
-    
-    private const string DEFAULT_CACHE_CONTROL = 'private, must-revalidate';
 
-    public function __construct(
-        private readonly DownloadResource $resource,
-        private readonly ?DownloadETag $etag = null,
-    ) {
+    /**
+     * @return array<string, string>
+     */
+    public function all(): array
+    {
+        return $this->headers;
     }
 
     public function setDisposition(ContentDisposition $disposition): self
@@ -34,39 +32,36 @@ final class DownloadHeaders
         return $this;
     }
 
-    public function setStatusCode(int $statusCode): self
-    {
-        $this->statusCode = $statusCode;
-        return $this;
-    }
-
-    public function setOverrideMime(?string $mime): self
-    {
-        $this->overrideMime = $mime;
-        return $this;
-    }
-
     /**
+     * Add a validated HTTP header.
+     *
      * @throws DownloadException
      */
     public function addHeader(string $name, int|string $value): self
     {
-        $name = self::normalizeHeaderName($name);
-        $this->headers[$name] = trim((string) $value);
+        $name = self::validateHeaderName($name);
+        $value = self::validateHeaderValue((string) $value);
+
+        $this->headers[$name] = $value;
         return $this;
     }
 
     /**
+     * Add the Content-Disposition header.
+     *
+     * The filename parameter contains an ASCII fallback for clients
+     * that do not support RFC 5987/6266 extended parameters.
+     *
+     * The filename* parameter contains the original UTF-8 filename.
+     *
      * @throws DownloadException
      */
-    public function addContentDispositionHeader(): self
+    public function addContentDispositionHeader(string $filename): self
     {
-        $filename = $this->resource->getFilename();
-
         return $this->addHeader(
             'Content-Disposition',
             sprintf(
-                "%s; filename=\"%s\"; filename*=UTF-8''%s",
+                '%s; filename="%s"; filename*=UTF-8\'\'%s',
                 $this->disposition->value,
                 self::sanitizeFilename($filename),
                 rawurlencode($filename)
@@ -75,6 +70,8 @@ final class DownloadHeaders
     }
 
     /**
+     * Add the Content-Length header.
+     *
      * @throws DownloadException
      */
     public function addContentLengthHeader(int $length): self
@@ -83,6 +80,8 @@ final class DownloadHeaders
     }
 
     /**
+     * Add the Accept-Ranges header.
+     *
      * @throws DownloadException
      */
     public function addAcceptRangesHeader(): self
@@ -91,6 +90,8 @@ final class DownloadHeaders
     }
 
     /**
+     * Add the Content-Range header.
+     *
      * @throws DownloadException
      */
     public function addContentRangeHeader(string $value): self
@@ -99,82 +100,131 @@ final class DownloadHeaders
     }
 
     /**
+     * Add the Content-Type header.
+     *
      * @throws DownloadException
      */
-    public function addConditionalHeaders(): self
+    public function addContentType(string $value): self
     {
-        return $this
-            ->addLastModifiedHeader()
-            ->addETagHeader();
-    }
-
-    public function build(): void
-    {
-        $this->applyDefaultHeaders();
-
-        if ($this->statusCode !== 304) {
-            $mime = $this->overrideMime ?? $this->resource->getMime();
-            header('Content-Type: ' . $mime);
-        }
-
-        foreach ($this->headers as $name => $value) {
-            header($name.': '.$value);
-        }
-
-        http_response_code($this->statusCode);
+        return $this->addHeader('Content-Type', $value);
     }
 
     /**
+     * Add the Last-Modified header.
+     *
      * @throws DownloadException
      */
-    private function addLastModifiedHeader(): self
+    public function addLastModifiedHeader(?int $value = null): self
     {
-        if ($this->resource->getLastModified() !== null) {
-            return $this->addHeader(
-                'Last-Modified',
-                gmdate('D, d M Y H:i:s', $this->resource->getLastModified()) . ' GMT'
-            );
-        }
-        return $this;
-    }
-
-    /**
-     * @throws DownloadException
-     */
-    private function addETagHeader(): self
-    {
-        if ($this->etag !== null) {
-            return $this->addHeader('ETag', $this->etag->getValue());
+        if ($value !== null) {
+            return $this->addHeader('Last-Modified', gmdate('D, d M Y H:i:s', $value) . ' GMT');
         }
 
         return $this;
     }
 
-    private function applyDefaultHeaders(): void
+    /**
+     * Add the ETag header.
+     *
+     * @throws DownloadException
+     */
+    public function addETagHeader(?string $value = null): self
+    {
+        if ($value !== null) {
+            return $this->addHeader('ETag', $value);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Apply default headers when they have not been explicitly defined.
+     */
+    public function applyDefaultHeaders(): void
     {
         if (!isset($this->headers['Cache-Control'])) {
-            $this->headers['Cache-Control'] ??= self::DEFAULT_CACHE_CONTROL;
+            $this->headers['Cache-Control'] = DownloadConfig::DEFAULT_CACHE_CONTROL;
         }
     }
 
     /**
      * @throws DownloadException
      */
-    private static function normalizeHeaderName(string $name): string
+    private static function validateHeaderName(string $name): string
     {
         $name = trim($name);
 
-        if (!preg_match('/^[A-Za-z0-9-]+$/', $name)) {
+        if ($name === '' || !preg_match('/^[A-Za-z0-9-]+$/', $name)) {
             throw DownloadException::invalidHeaderName($name);
         }
 
-        return ucwords($name, '-');
+        $normalized = ucwords(strtolower($name), '-');
+
+        if (!in_array($normalized, DownloadConfig::VALID_HEADERS, true)) {
+            throw DownloadException::invalidHeaderName($name);
+        }
+
+        return $normalized;
     }
 
+    /**
+     * Validate an HTTP header value.
+     *
+     * CR and LF characters are forbidden to prevent HTTP header injection.
+     *
+     * @throws DownloadException
+     */
+    private static function validateHeaderValue(string $value): string
+    {
+        if (str_contains($value, "\r") || str_contains($value, "\n")) {
+            throw DownloadException::invalidHeaderValue($value);
+        }
+
+        return $value;
+    }
+
+    /**
+     * Build a safe ASCII fallback for the Content-Disposition filename.
+     *
+     * Control characters are removed first. The /u modifier is deliberately
+     * avoided so that invalid UTF-8 byte sequences do not cause preg_replace()
+     * to fail.
+     */
     private static function sanitizeFilename(string $filename): string
     {
-        $filename = preg_replace('/[\x00-\x1F\x7F]/u', '', $filename);
+        $filename = preg_replace('/[\x00-\x1F\x7F]/', '', $filename) ?? '';
+        $filename = trim($filename);
 
-        return addcslashes($filename, "\"\\");
+        $extension = pathinfo($filename, PATHINFO_EXTENSION);
+        $basename = pathinfo($filename, PATHINFO_FILENAME);
+
+        $basename = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $basename);
+
+        if ($basename === false) {
+            $basename = '';
+        }
+
+        $basename = preg_replace('/[^\x20-\x7E]/', '', $basename) ?? '';
+        $basename = trim($basename);
+
+        if ($basename === '') {
+            $basename = 'download';
+        }
+
+        $result = $basename;
+
+        if ($extension !== '') {
+            $extension = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $extension);
+
+            if ($extension !== false) {
+                $extension = preg_replace('/[^A-Za-z0-9]/', '', $extension) ?? '';
+
+                if ($extension !== '') {
+                    $result .= '.' . $extension;
+                }
+            }
+        }
+
+        return addcslashes($result, "\"\\");
     }
 }

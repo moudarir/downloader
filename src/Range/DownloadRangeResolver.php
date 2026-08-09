@@ -14,18 +14,20 @@ final readonly class DownloadRangeResolver
 
     public function __construct(
         private DownloadRequest $request,
-        private DownloadResource $resource,
         private ?DownloadETag $etag,
+        private ?int $lastModified,
     ) {
     }
 
-    public function resolve(): ?DownloadRange
+    public static function create(DownloadResource $resource, DownloadRequest $request, ?DownloadETag $etag): ?DownloadRange
     {
-        if (!$this->shouldProcessRange()) {
-            return DownloadRange::full($this->resource->getFilesize());
+        $resolver = new self($request, $etag, $resource->getLastModified());
+
+        if (!$resolver->shouldProcessRange()) {
+            return DownloadRange::full($resource->getFilesize());
         }
 
-        return DownloadRangeParser::parse($this->request->getRange(), $this->resource->getFilesize());
+        return DownloadRangeParser::parse($request->getRange(), $resource->getFilesize());
     }
 
     private function shouldProcessRange(): bool
@@ -52,7 +54,7 @@ final readonly class DownloadRangeResolver
          * If-Range: HTTP-date
          */
 
-        if (($lastModified = $this->resource->getLastModified()) === null) {
+        if ($this->lastModified === null) {
             return false;
         }
 
@@ -60,6 +62,6 @@ final readonly class DownloadRangeResolver
             return false;
         }
 
-        return $lastModified <= $timestamp;
+        return $this->lastModified <= $timestamp;
     }
 }

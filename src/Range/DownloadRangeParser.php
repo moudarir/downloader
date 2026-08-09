@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Moudarir\Downloader\Range;
 
 use Moudarir\Downloader\DownloadConfig;
+use Random\RandomException;
 
 final class DownloadRangeParser
 {
@@ -52,7 +53,6 @@ final class DownloadRangeParser
         /*
          * "-"
          */
-
         if ($start === '' && $end === '') {
             return null;
         }
@@ -60,7 +60,6 @@ final class DownloadRangeParser
         /*
          * "-500"
          */
-
         if ($start === '') {
             $suffix = (int) $end;
 
@@ -78,7 +77,6 @@ final class DownloadRangeParser
         /*
          * start >= filesize
          */
-
         if ($start >= $filesize) {
             return null;
         }
@@ -86,7 +84,6 @@ final class DownloadRangeParser
         /*
          * "500-"
          */
-
         if ($end === '') {
             return new DownloadRangeItem($start, $filesize - 1);
         }
@@ -96,7 +93,6 @@ final class DownloadRangeParser
         /*
          * 600-500
          */
-
         if ($end < $start) {
             return null;
         }
@@ -144,8 +140,7 @@ final class DownloadRangeParser
     {
         try {
             return bin2hex( random_bytes(16));
-        } catch (\Random\RandomException $exception) {
-            log_exception($exception);
+        } catch (RandomException $exception) {
             return null;
         }
     }

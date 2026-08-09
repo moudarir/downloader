@@ -21,7 +21,14 @@ final class DownloadException extends Exception
 
     public static function invalidHeaderName(string $name): self
     {
-        return new self(sprintf('Invalid HTTP header name "%s".', $name));
+        return new self(sprintf("Invalid HTTP header name `%s`.", $name));
+    }
+
+    public static function invalidHeaderValue(string $value): self
+    {
+        return new self(
+            sprintf("Invalid HTTP header value: `%s`.", $value)
+        );
     }
 
     public static function eTagStrategyFailed(string $strategy): self

@@ -21,7 +21,7 @@ final readonly class DownloadRequest
     ) {
     }
 
-    public static function fromGlobals(): self
+    public static function create(): self
     {
         return new self(
             strtoupper($_SERVER['REQUEST_METHOD'] ?? '') === 'HEAD'

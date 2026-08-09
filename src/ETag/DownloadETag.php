@@ -20,7 +20,7 @@ final readonly class DownloadETag
      */
     public static function create(
         DownloadResource $resource,
-        ETagStrategy $strategy = ETagStrategy::MTIME,
+        ?ETagStrategy $strategy = null,
         bool $weak = false
     ): self
     {
@@ -92,18 +92,19 @@ final readonly class DownloadETag
     /**
      * @throws DownloadException
      */
-    private static function calculate(DownloadResource $resource, ETagStrategy $strategy): string
+    private static function calculate(DownloadResource $resource, ?ETagStrategy $strategy = null): string
     {
-        $result = match ($strategy) {
+        $resolve = DownloadETagResolver::resolve($resource, $strategy);
+        $result = match ($resolve) {
             ETagStrategy::INODE => self::inodeStrategy($resource),
             ETagStrategy::MD5,
             ETagStrategy::SHA256,
-            ETagStrategy::SHA512 => $resource->getHash($strategy->value),
+            ETagStrategy::SHA512 => $resource->getHash($resolve->value),
             ETagStrategy::MTIME => self::mtimeStrategy($resource),
         };
 
         if ($result === null) {
-            throw DownloadException::eTagStrategyFailed($strategy->value);
+            throw DownloadException::eTagStrategyFailed($resolve->value);
         }
 
         return $result;

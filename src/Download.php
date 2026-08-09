@@ -7,13 +7,11 @@ namespace Moudarir\Downloader;
 use Moudarir\Downloader\Enums\ContentDisposition;
 use Moudarir\Downloader\Enums\ETagStrategy;
 use Moudarir\Downloader\ETag\DownloadETag;
-use Moudarir\Downloader\ETag\DownloadETagResolver;
 use Moudarir\Downloader\Exceptions\DownloadException;
 use Moudarir\Downloader\Http\DownloadHeaders;
-use Moudarir\Downloader\Http\DownloadMultipartResponse;
 use Moudarir\Downloader\Http\DownloadPreconditions;
 use Moudarir\Downloader\Http\DownloadRequest;
-use Moudarir\Downloader\Range\DownloadRangeResolver;
+use Moudarir\Downloader\Http\DownloadResponse;
 use Moudarir\Downloader\Resources\DownloadData;
 use Moudarir\Downloader\Resources\DownloadFile;
 use Moudarir\Downloader\Resources\DownloadResource;
@@ -32,16 +30,13 @@ final readonly class Download
      */
     private function __construct(private DownloadResource $resource, ?ETagStrategy $strategy = null)
     {
-        $this->request = DownloadRequest::fromGlobals();
+        $this->request = DownloadRequest::create();
 
         $this->etag = DownloadConfig::ENABLE_ETAG
-            ? DownloadETag::create(
-                $this->resource,
-                DownloadETagResolver::resolve($this->resource, $strategy)
-            )
+            ? DownloadETag::create($this->resource, $strategy)
             : null;
 
-        $this->headers = new DownloadHeaders($this->resource, $this->etag);
+        $this->headers = new DownloadHeaders();
     }
 
     /**
@@ -63,132 +58,114 @@ final readonly class Download
     /**
      * @throws DownloadException
      */
-    public function stream(): void
+    public function stream(): DownloadResponse
     {
-        @set_time_limit(0);
-        $this->initializeResponse();
+        $result = DownloadPreconditions::evaluate($this->request, $this->resource, $this->etag);
 
-        $this->headers
-            ->addContentLengthHeader($this->resource->getFilesize())
-            ->build();
-
-        if ($this->request->isHead()) {
-            self::finish();
+        if ($result->isOk() === false) {
+            return  DownloadResponse::precondition(
+                $result->getStatusCode(),
+                $this->headers,
+                $this->resource,
+                $this->etag
+            );
         }
 
-        $this->resource->output($this->resource->getFilesize());
-        self::finish();
+        return  DownloadResponse::ok(
+            $this->headers,
+            $this->resource,
+            $this->request,
+            $this->etag,
+        );
     }
 
     /**
      * @throws DownloadException
      */
-    public function streamPartial(): void
+    public function streamPartial(): DownloadResponse
     {
-        @set_time_limit(0);
-        $this->initializeResponse();
+        $result = DownloadPreconditions::evaluate($this->request, $this->resource, $this->etag);
 
-        $this->headers->addAcceptRangesHeader();
-
-        $filesize = $this->resource->getFilesize();
-        $range = new DownloadRangeResolver($this->request, $this->resource, $this->etag)
-            ->resolve();
-
-        if ($range === null) {
-            $this->headers
-                ->setStatusCode(416)
-                ->addContentLengthHeader(0)
-                ->addContentRangeHeader(sprintf('bytes */%d', $filesize))
-                ->build();
-            self::finish();
+        if ($result->isOk() === false) {
+            return  DownloadResponse::precondition(
+                $result->getStatusCode(),
+                $this->headers,
+                $this->resource,
+                $this->etag
+            );
         }
 
-        $multipart = null;
-
-        if ($range->isPartial()) {
-            if ($range->isMultipart()) {
-                $multipart = new DownloadMultipartResponse($this->resource, $range);
-                $contentLength = $multipart->getContentLength();
-
-                $this->headers->setOverrideMime($multipart->getContentType());
-            } else {
-                $item = $range->getFirstItem();
-                $contentLength = $item->getLength();
-
-                $this->headers
-                    ->addContentRangeHeader(
-                        sprintf('bytes %d-%d/%d', $item->getStart(), $item->getEnd(), $filesize)
-                    );
-            }
-
-            $this->headers
-                ->setStatusCode(206)
-                ->addContentLengthHeader($contentLength);
-        } else {
-            $this->headers->addContentLengthHeader($filesize);
-        }
-
-        $this->headers->build();
-
-        if ($this->request->isHead()) {
-            self::finish();
-        }
-
-        if ($multipart !== null) {
-            $multipart->output();
-            self::finish();
-        }
-
-        $item = $range->getFirstItem();
-
-        $this->resource->output($item->getLength(), $item->getStart());
-
-        flush();
-        self::finish();
+        return  DownloadResponse::ok(
+            $this->headers,
+            $this->resource,
+            $this->request,
+            $this->etag,
+            isPartial: true,
+        );
     }
 
     /**
      * @throws DownloadException
      */
-    public function streamXSendFile(): void
+    public function streamXSendFile(): DownloadResponse
     {
         if ($this->resource->getFilepath() === null) {
             throw DownloadException::operationNotSupportedOnData('X-Sendfile');
         }
 
-        $this->initializeResponse();
+        $result = DownloadPreconditions::evaluate($this->request, $this->resource, $this->etag);
 
-        if ($this->request->isHead()) {
-            $this->headers->build();
-            self::finish();
+        if ($result->isOk() === false) {
+            return  DownloadResponse::precondition(
+                $result->getStatusCode(),
+                $this->headers,
+                $this->resource,
+                $this->etag,
+                isServerSide: true
+            );
         }
 
-        $this->headers
-            ->addHeader('X-Sendfile', $this->resource->getFilepath())
-            ->build();
-        self::finish();
+        $this->headers->addHeader('X-Sendfile', $this->resource->getFilepath());
+
+        return  DownloadResponse::ok(
+            $this->headers,
+            $this->resource,
+            $this->request,
+            $this->etag,
+            isServerSide: true
+        );
     }
 
     /**
      * @throws DownloadException
      */
-    public function streamXAccelRedirect(string $internalUri): void
+    public function streamXAccelRedirect(string $internalUri): DownloadResponse
     {
         if ($this->resource->getFilepath() === null) {
             throw DownloadException::operationNotSupportedOnData('X-Accel-Redirect');
         }
 
-        $this->initializeResponse();
+        $result = DownloadPreconditions::evaluate($this->request, $this->resource, $this->etag);
 
-        if ($this->request->isHead()) {
-            $this->headers->build();
-            self::finish();
+        if ($result->isOk() === false) {
+            return  DownloadResponse::precondition(
+                $result->getStatusCode(),
+                $this->headers,
+                $this->resource,
+                $this->etag,
+                isServerSide: true
+            );
         }
 
-        $this->headers
-            ->addHeader('X-Accel-Redirect', $internalUri)
-            ->build();
-        self::finish();
+        $this->headers->addHeader('X-Accel-Redirect', $internalUri);
+
+        return  DownloadResponse::ok(
+            $this->headers,
+            $this->resource,
+            $this->request,
+            $this->etag,
+            isServerSide: true
+        );
     }
 
     public function inline(): self
@@ -204,44 +181,5 @@ final readonly class Download
     {
         $this->headers->addHeader($name, $value);
         return $this;
-    }
-
-    /**
-     * @throws DownloadException
-     */
-    private function initializeResponse(): void
-    {
-        self::clearOutputBuffers();
-        $this->headers->addConditionalHeaders();
-        $this->checkPreconditions();
-        $this->headers->addContentDispositionHeader();
-    }
-
-    private function checkPreconditions(): void
-    {
-        $result = DownloadPreconditions::evaluate($this->request, $this->resource, $this->etag);
-
-        if ($result->isOk()) {
-            return;
-        }
-
-        $this->headers
-            ->setStatusCode($result->getStatusCode())
-            ->build();
-        self::finish();
-    }
-
-    private static function clearOutputBuffers(): void
-    {
-        while (ob_get_level() > 0) {
-            if (!ob_end_clean()) {
-                break;
-            }
-        }
-    }
-
-    private static function finish(): never
-    {
-        exit;
     }
 }

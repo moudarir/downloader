@@ -2,16 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on Keep a Changelog
-and this project follows Semantic Versioning.
-
 ---
 
-## [1.0.0] - 2026-08-07
+## [2.0.0] - 2026-08-09
+
+### Breaking Changes
+
+* `stream()`, `streamPartial()`, `streamXSendFile()` and `streamXAccelRedirect()` now return a `DownloadResponse` object.
+* A response must now be sent explicitly by calling `DownloadResponse::send()`.
 
 ### Added
 
-- Initial public release.
+* Added `DownloadResponse` to centralize HTTP response handling.
+* Added HTTP header validation and protection against header injection.
+* Added ASCII fallback generation for `Content-Disposition` filenames.
+* Added `ext-iconv` as a dependency.
+
+### Changed
+
+* Refactored response construction and output handling from `Download` into `DownloadResponse`.
+* Improved handling of full and partial content responses.
+* Improved HTTP Range response handling, including `206 Partial Content` and `416 Range Not Satisfiable`.
+* Improved ETag and conditional request handling.
+* Refactored HTTP header management through `DownloadHeaders`.
+* Updated documentation and usage examples to reflect the new response workflow.
+
+### Fixed
+
+* Improved handling of HTTP headers and `Content-Disposition` filenames.
+* Fixed potential HTTP header injection through custom header values.
+* Improved handling of filenames containing non-ASCII characters.
+
+
+## [1.0.0] - 2026-08-07
+
+Initial stable release.
+
+### Added
+
 - File download support.
 - In-memory download support.
 - HTTP Range Requests.
@@ -23,18 +51,3 @@ and this project follows Semantic Versioning.
 - X-Accel-Redirect support.
 - UTF-8 filename support (RFC 6266).
 - HTTP-date parser supporting all RFC 9110 date formats.
-
-### Changed
-
-- RFC 9110 compliant conditional request evaluation.
-- Improved MIME type detection.
-- Improved HTTP header generation.
-- Better ETag comparison logic.
-- Default Cache-Control handling.
-
-### Fixed
-
-- 304 responses no longer include entity headers.
-- Strict HTTP-date parsing.
-- Correct Content-Disposition generation.
-- Various RFC compliance improvements.
