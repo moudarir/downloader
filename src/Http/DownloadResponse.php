@@ -62,11 +62,11 @@ final class DownloadResponse
         if ($isPartial === true) {
             $headers->addAcceptRangesHeader();
 
-            $range = DownloadRangeResolver::create($resource, $request, $etag);
+            $result = DownloadRangeResolver::create($resource, $request, $etag);
 
-            if ($range === null) {
-                $headers
-                    ->addContentRangeHeader(sprintf('bytes */%d', $resource->getFilesize()));
+            if ($result->isUnsatisfiable()) {
+                $headers->addContentRangeHeader(sprintf('bytes */%d', $resource->getFilesize()));
+
                 return new self(
                     $headers,
                     $resource,
@@ -76,6 +76,15 @@ final class DownloadResponse
                 )
                     ->setContentLength(0)
                     ->setStatusCode(416);
+            }
+
+            if ($result->isInvalid()) {
+                /*
+                 * Invalid Range syntax:
+                 * ignore the Range header and serve the full representation.
+                 */
+            } else {
+                $range = $result->getRange();
             }
         }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Moudarir\Downloader\Http;
 
 use Moudarir\Downloader\Enums\RequestMethod;
+use Moudarir\Downloader\Exceptions\DownloadException;
 use Moudarir\Downloader\Helpers\CommonHelper;
 use Moudarir\Downloader\Helpers\HttpDateHelper;
 
@@ -21,12 +22,23 @@ final readonly class DownloadRequest
     ) {
     }
 
+    /**
+     * @throws DownloadException
+     */
     public static function create(): self
     {
+        $requestMethod = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+
+        if ($requestMethod === 'GET') {
+            $method = RequestMethod::GET;
+        } elseif ($requestMethod === 'HEAD') {
+            $method = RequestMethod::HEAD;
+        } else {
+            throw DownloadException::unsupportedRequestMethod($requestMethod);
+        }
+
         return new self(
-            strtoupper($_SERVER['REQUEST_METHOD'] ?? '') === 'HEAD'
-                ? RequestMethod::HEAD
-                : RequestMethod::GET,
+            $method,
             CommonHelper::nullIfEmpty($_SERVER['HTTP_RANGE'] ?? ''),
             CommonHelper::nullIfEmpty($_SERVER['HTTP_IF_RANGE'] ?? ''),
             CommonHelper::nullIfEmpty($_SERVER['HTTP_IF_MATCH'] ?? ''),

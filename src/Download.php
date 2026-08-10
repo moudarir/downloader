@@ -177,9 +177,9 @@ final readonly class Download
     /**
      * @throws DownloadException
      */
-    public function addHeader(string $name, int|string $value): self
+    public function addCacheControl(string $value): self
     {
-        $this->headers->addHeader($name, $value);
+        $this->headers->addHeader('Cache-Control', $value);
         return $this;
     }
 }

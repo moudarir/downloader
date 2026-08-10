@@ -22,10 +22,14 @@ final class DownloadETagResolver
             throw DownloadException::noETagStrategySupported($resource::class);
         }
 
-        if ($strategy !== null && in_array($strategy, $strategies, true)) {
-            return $strategy;
+        if ($strategy === null) {
+            return $strategies[0];
         }
 
-        return $strategies[0];
+        if (!in_array($strategy, $strategies, true)) {
+            throw DownloadException::unsupportedETagStrategy($strategy->value, $resource::class);
+        }
+
+        return $strategy;
     }
 }

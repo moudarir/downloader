@@ -7,6 +7,7 @@ namespace Moudarir\Downloader\Http;
 use Moudarir\Downloader\DownloadConfig;
 use Moudarir\Downloader\Enums\ContentDisposition;
 use Moudarir\Downloader\Exceptions\DownloadException;
+use Moudarir\Downloader\Helpers\CommonHelper;
 
 final class DownloadHeaders
 {
@@ -39,8 +40,8 @@ final class DownloadHeaders
      */
     public function addHeader(string $name, int|string $value): self
     {
-        $name = self::validateHeaderName($name);
-        $value = self::validateHeaderValue((string) $value);
+        $name = CommonHelper::validateHeaderName($name);
+        $value = CommonHelper::validateHeaderValue((string) $value);
 
         $this->headers[$name] = $value;
         return $this;
@@ -145,42 +146,6 @@ final class DownloadHeaders
         if (!isset($this->headers['Cache-Control'])) {
             $this->headers['Cache-Control'] = DownloadConfig::DEFAULT_CACHE_CONTROL;
         }
-    }
-
-    /**
-     * @throws DownloadException
-     */
-    private static function validateHeaderName(string $name): string
-    {
-        $name = trim($name);
-
-        if ($name === '' || !preg_match('/^[A-Za-z0-9-]+$/', $name)) {
-            throw DownloadException::invalidHeaderName($name);
-        }
-
-        $normalized = ucwords(strtolower($name), '-');
-
-        if (!in_array($normalized, DownloadConfig::VALID_HEADERS, true)) {
-            throw DownloadException::invalidHeaderName($name);
-        }
-
-        return $normalized;
-    }
-
-    /**
-     * Validate an HTTP header value.
-     *
-     * CR and LF characters are forbidden to prevent HTTP header injection.
-     *
-     * @throws DownloadException
-     */
-    private static function validateHeaderValue(string $value): string
-    {
-        if (str_contains($value, "\r") || str_contains($value, "\n")) {
-            throw DownloadException::invalidHeaderValue($value);
-        }
-
-        return $value;
     }
 
     /**

@@ -127,7 +127,7 @@ final readonly class DownloadPreconditions
          * explicit check documents the RFC requirement and prevents future
          * regressions if additional HTTP methods are introduced.
          */
-        if ($this->request->isSafeMethod()) {
+        if (!$this->request->isSafeMethod()) {
             return null;
         }
 

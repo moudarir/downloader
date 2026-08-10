@@ -62,6 +62,27 @@ final class DownloadException extends Exception
         ));
     }
 
+    public static function unsupportedETagStrategy(string $strategy, string $resource): self
+    {
+        return new self(sprintf(
+            "ETag strategy `%s` is not supported by resource `%s`.",
+            $strategy, $resource
+        ));
+    }
+
+    public static function unsupportedRequestMethod(string $method): self
+    {
+        return new self(sprintf(
+            "The HTTP request method `%s` is not supported.",
+            $method
+        ));
+    }
+
+    public static function boundaryGenerationFailed(string $message): self
+    {
+        return new self("Unable to generate a multipart boundary: " . $message);
+    }
+
     public static function generic(string $message): self
     {
         return new self($message);

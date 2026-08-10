@@ -5,47 +5,60 @@ declare(strict_types=1);
 namespace Moudarir\Downloader\Range;
 
 use Moudarir\Downloader\DownloadConfig;
+use Moudarir\Downloader\Enums\DownloadRangeItemStatus;
+use Moudarir\Downloader\Exceptions\DownloadException;
 use Random\RandomException;
 
 final class DownloadRangeParser
 {
 
-    public static function parse(string $header, int $filesize): ?DownloadRange
+    /**
+     * @throws DownloadException
+     */
+    public static function parse(string $header, int $filesize): DownloadRangeResult
     {
         if (!str_starts_with($header, 'bytes=')) {
-            return null;
+            return DownloadRangeResult::invalid();
         }
 
         $ranges = explode(',', substr($header, 6));
 
         if (count($ranges) > DownloadConfig::MAX_RANGE_ITEMS) {
-            return null;
+            return DownloadRangeResult::invalid();
         }
 
         $items = [];
 
         foreach ($ranges as $range) {
-            if (($item = self::parseItem(trim($range), $filesize)) === null) {
-                return null;
+            $result = self::parseItem(trim($range), $filesize);
+
+            if ($result === DownloadRangeItemStatus::INVALID) {
+                return DownloadRangeResult::invalid();
             }
 
-            $items[] = $item;
+            if ($result === DownloadRangeItemStatus::UNSATISFIABLE) {
+                continue;
+            }
+
+            $items[] = $result;
         }
 
         if ($items === []) {
-            return null;
+            return DownloadRangeResult::unsatisfiable();
         }
 
         $items = self::mergeRanges($items);
         $boundary = count($items) > 1 ? self::generateBoundary() : null;
 
-        return DownloadRange::partial($items, $boundary);
+        return DownloadRangeResult::valid(
+            DownloadRange::partial($items, $boundary)
+        );
     }
 
-    private static function parseItem(string $range, int $filesize): ?DownloadRangeItem
+    private static function parseItem(string $range, int $filesize): DownloadRangeItem|DownloadRangeItemStatus
     {
         if (!preg_match('/^(\d*)-(\d*)$/', $range, $matches)) {
-            return null;
+            return DownloadRangeItemStatus::INVALID;
         }
 
         [, $start, $end] = $matches;
@@ -54,17 +67,21 @@ final class DownloadRangeParser
          * "-"
          */
         if ($start === '' && $end === '') {
-            return null;
+            return DownloadRangeItemStatus::INVALID;
         }
 
         /*
          * "-500"
          */
         if ($start === '') {
-            $suffix = (int) $end;
+            $suffix = (int)$end;
 
             if ($suffix <= 0) {
-                return null;
+                return DownloadRangeItemStatus::INVALID;
+            }
+
+            if ($filesize === 0) {
+                return DownloadRangeItemStatus::UNSATISFIABLE;
             }
 
             $suffix = min($suffix, $filesize);
@@ -72,13 +89,13 @@ final class DownloadRangeParser
             return new DownloadRangeItem($filesize - $suffix, $filesize - 1);
         }
 
-        $start = (int) $start;
+        $start = (int)$start;
 
         /*
          * start >= filesize
          */
         if ($start >= $filesize) {
-            return null;
+            return DownloadRangeItemStatus::UNSATISFIABLE;
         }
 
         /*
@@ -88,13 +105,13 @@ final class DownloadRangeParser
             return new DownloadRangeItem($start, $filesize - 1);
         }
 
-        $end = min((int) $end, $filesize - 1);
+        $end = min((int)$end, $filesize - 1);
 
         /*
-         * 600-500
+         * "600-500"
          */
         if ($end < $start) {
-            return null;
+            return DownloadRangeItemStatus::INVALID;
         }
 
         return new DownloadRangeItem($start, $end);
@@ -136,12 +153,15 @@ final class DownloadRangeParser
         return $merged;
     }
 
-    private static function generateBoundary(): ?string
+    /**
+     * @throws DownloadException
+     */
+    private static function generateBoundary(): string
     {
         try {
-            return bin2hex( random_bytes(16));
+            return bin2hex(random_bytes(16));
         } catch (RandomException $exception) {
-            return null;
+            throw DownloadException::boundaryGenerationFailed($exception->getMessage());
         }
     }
 }

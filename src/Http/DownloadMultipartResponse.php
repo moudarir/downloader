@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Moudarir\Downloader\Http;
 
 use Moudarir\Downloader\Range\DownloadRange;
+use Moudarir\Downloader\Range\DownloadRangeItem;
 use Moudarir\Downloader\Resources\DownloadResource;
 
 final readonly class DownloadMultipartResponse
@@ -21,52 +22,44 @@ final readonly class DownloadMultipartResponse
 
     public function getContentLength(): int
     {
-        $filesize = $this->resource->getFilesize();
-        $mime = $this->resource->getMime();
-        $boundary = $this->range->getBoundary();
         $length = 0;
 
         foreach ($this->range->getItems() as $item) {
-            $header = sprintf(
-                "--%s\r\nContent-Type: %s\r\nContent-Range: bytes %d-%d/%d\r\n\r\n",
-                $boundary,
-                $mime,
-                $item->getStart(),
-                $item->getEnd(),
-                $filesize
-            );
-
-            $length += strlen($header) + $item->getLength() + 2;
+            $length += strlen($this->getPartHeader($item))
+                + $item->getLength()
+                + 2;  // CRLF after the part body
         }
 
-        $length += strlen(sprintf("--%s--\r\n", $boundary));
-        return $length;
+        return $length + strlen($this->getClosingBoundary());
     }
 
     public function output(): void
     {
-        $boundary = $this->range->getBoundary();
-        $mime = $this->resource->getMime();
-        $filesize = $this->resource->getFilesize();
-
         foreach ($this->range->getItems() as $item) {
-            echo sprintf(
-                "--%s\r\nContent-Type: %s\r\nContent-Range: bytes %d-%d/%d\r\n\r\n",
-                $boundary,
-                $mime,
-                $item->getStart(),
-                $item->getEnd(),
-                $filesize
-            );
-            flush();
+            echo $this->getPartHeader($item);
 
             $this->resource->output($item->getLength(), $item->getStart());
 
             echo "\r\n";
-            flush();
         }
 
-        echo sprintf("--%s--\r\n", $boundary);
-        flush();
+        echo $this->getClosingBoundary();
+    }
+
+    private function getPartHeader(DownloadRangeItem $item): string
+    {
+        return sprintf(
+            "--%s\r\nContent-Type: %s\r\nContent-Range: bytes %d-%d/%d\r\n\r\n",
+            $this->range->getBoundary(),
+            $this->resource->getMime(),
+            $item->getStart(),
+            $item->getEnd(),
+            $this->resource->getFilesize()
+        );
+    }
+
+    private function getClosingBoundary(): string
+    {
+        return sprintf("--%s--\r\n", $this->range->getBoundary());
     }
 }
