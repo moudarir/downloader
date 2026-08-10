@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [2.0.1] - 2026-08-10
+
+### Changed
+
+* Refactored HTTP header validation and multipart response handling.
+* Improved HTTP Range and conditional request handling.
+
+### Fixed
+
+* Fixed ETag header name normalization.
+* Fixed handling of invalid and unsatisfiable Range requests.
+* Fixed HTTP precondition evaluation and precedence.
+* Fixed multipart boundary generation failures.
+
+
 ## [2.0.0] - 2026-08-09
 
 ### Breaking Changes
