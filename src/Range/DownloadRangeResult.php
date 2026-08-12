@@ -1,14 +1,14 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Moudarir\Downloader\Range;
 
 final readonly class DownloadRangeResult
 {
-    private function __construct(
-        private ?DownloadRange $range,
-        private bool $valid,
-    ) {
+
+    private function __construct(private ?DownloadRange $range, private bool $valid)
+    {
     }
 
     public static function invalid(): self

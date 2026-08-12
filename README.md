@@ -35,11 +35,16 @@ composer require moudarir/downloader
 
 ## Usage
 
+> `$mime` accepts:
+> - `true` to automatically detect the MIME type from the file contents.
+> - A non-empty string to explicitly specify the MIME type.
+> - An empty string to use `DownloadConfig::DEFAULT_MIME`.
+
 
 ### Download a file
 
 ```php
-$response = Download::fromFile('/path/to/file.pdf');
+$response = Download::fromFile('/path/to/file.pdf', mime: 'application/pdf');
 
 $response->send();
 ```
@@ -48,7 +53,7 @@ $response->send();
 ### Download with a custom filename
 
 ```php
-$response = Download::fromFile('/path/to/file.pdf', 'document.pdf');
+$response = Download::fromFile('/path/to/file.pdf', 'document.pdf', 'application/pdf');
 
 $response->send();
 ```
@@ -57,7 +62,7 @@ $response->send();
 ### Inline response
 
 ```php
-$response = Download::fromFile('/path/to/file.pdf')->inline();
+$response = Download::fromFile('/path/to/file.pdf', mime: 'application/pdf')->inline();
 
 $response->send();
 ```
@@ -66,7 +71,7 @@ $response->send();
 ### Partial content / Range requests
 
 ```php
-$response = Download::fromFile('/path/to/video.mp4', 'video.mp4', true, ResponseAction::PARTIAL)
+$response = Download::fromFile('/path/to/video.mp4', 'video.mp4', 'video/mp4', ResponseAction::PARTIAL)
     ->inline();
 
 $response->send();

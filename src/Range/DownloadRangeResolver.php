@@ -48,7 +48,6 @@ final readonly class DownloadRangeResolver
          * RFC 9110
          * If-Range: "<etag>"
          */
-
         if (str_starts_with($ifRange, '"') || str_starts_with($ifRange, 'W/"')) {
             return $this->etag->matches($ifRange, false);
         }
@@ -56,7 +55,6 @@ final readonly class DownloadRangeResolver
         /*
          * If-Range: HTTP-date
          */
-
         if ($this->lastModified === null) {
             return false;
         }

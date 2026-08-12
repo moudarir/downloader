@@ -11,6 +11,7 @@ use Moudarir\Downloader\Helpers\HttpDateHelper;
 
 final readonly class DownloadRequest
 {
+
     private function __construct(
         private RequestMethod $method,
         private ?string $range,

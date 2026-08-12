@@ -6,6 +6,7 @@ namespace Moudarir\Downloader\Range;
 
 final readonly class DownloadRangeItem
 {
+
     public function __construct(private int $start, private int $end)
     {
     }

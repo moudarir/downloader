@@ -47,7 +47,7 @@ final readonly class Download
     public static function fromFile(
         string $filepath,
         ?string $filename = null,
-        bool $detectMime = false,
+        true|string $mime = '',
         ResponseAction $responseAction = ResponseAction::DEFAULT,
         ?string $xAccelRedirectUri = null,
         ?ETagStrategy $strategy = null,
@@ -56,7 +56,7 @@ final readonly class Download
         self::validateResponseAction($responseAction, true, $xAccelRedirectUri);
 
         $download = new self(
-            DownloadFile::create($filepath, $filename, $detectMime),
+            DownloadFile::create($filepath, $filename, $mime),
             $responseAction,
             $strategy
         );

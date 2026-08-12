@@ -4,44 +4,83 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [2.2.0] - 2026-08-12
+
+### Breaking Changes
+
+* Changed the third parameter of `Download::fromFile()` from `bool $detectMime` to `string|true $mime`.
+* `$mime` now accepts:
+  - `true` to automatically detect the MIME type from the file contents.
+  - A non-empty string to explicitly specify the MIME type.
+  - An empty string to use `DownloadConfig::DEFAULT_MIME`.
+
+### Performance
+
+Avoid unnecessary MIME type detection when the MIME type is already known, reducing the overhead of file downloads, especially for large files and partial/range responses.
+
+### Migration
+
+Before:
+
+```php
+Download::fromFile($filepath, $filename, false);
+
+// or
+Download::fromFile($filepath, $filename, true);
+```
+
+After:
+
+```php
+// DownloadConfig::DEFAULT_MIME used
+Download::fromFile($filepath, $filename);
+
+// or, 'video/x-matroska' MIME type used
+Download::fromFile($filepath, $filename, 'video/x-matroska');
+
+// or, automatically detect the MIME type
+Download::fromFile($filepath, $filename, true);
+```
+
+
 ## [2.1.0] - 2026-08-12
 
 ### Breaking Changes
 
-- Replaced the previous `stream*()` API with explicit response actions through `ResponseAction`.
-- `Download::fromFile()` and `Download::fromData()` now return a `DownloadResponse` directly.
-- Responses must be sent explicitly with `DownloadResponse::send()`.
-- ETag generation is now mandatory for every download resource.
+* Replaced the previous `stream*()` API with explicit response actions through `ResponseAction`.
+* `Download::fromFile()` and `Download::fromData()` now return a `DownloadResponse` directly.
+* Responses must be sent explicitly with `DownloadResponse::send()`.
+* ETag generation is now mandatory for every download resource.
 
 ### Added
 
-- Added `ResponseAction` to explicitly define how a response is delivered:
-  - `DEFAULT`
-  - `PARTIAL`
-  - `X_SEND_FILE`
-  - `X_ACCEL_REDIRECT`
+Added `ResponseAction` to explicitly define how a response is delivered:
+* `DEFAULT`
+* `PARTIAL`
+* `X_SEND_FILE`
+* `X_ACCEL_REDIRECT`
 
 ### Changed
 
-- Refactored response creation and delivery around `DownloadResponse`.
-- `X-Sendfile` and `X-Accel-Redirect` are now explicit response actions.
-- Improved HTTP precondition precedence and evaluation according to `RFC 9110`.
-- Improved `If-Range` handling for both entity tags and HTTP dates.
-- Improved handling of `206 Partial Content` and `416 Range Not Satisfiable`.
-- Improved multipart byte-range response handling.
+* Refactored response creation and delivery around `DownloadResponse`.
+* `X-Sendfile` and `X-Accel-Redirect` are now explicit response actions.
+* Improved HTTP precondition precedence and evaluation according to `RFC 9110`.
+* Improved `If-Range` handling for both entity tags and HTTP dates.
+* Improved handling of `206 Partial Content` and `416 Range Not Satisfiable`.
+* Improved multipart byte-range response handling.
 
 ### Fixed
 
-- Fixed `ETag` header name normalization.
-- Fixed `If-Modified-Since` evaluation.
-- Fixed precedence between `If-None-Match` and `If-Modified-Since`.
-- Fixed `If-Match: *` handling.
-- Fixed `If-None-Match: *` handling.
-- Fixed strong and weak ETag comparison for conditional requests.
-- Fixed `If-Range` entity-tag comparison.
-- Fixed `If-Range` HTTP-date comparison.
-- Fixed `412 Precondition Failed` responses from including representation-specific headers.
-- Fixed invalid and unsatisfiable Range request handling.
+* Fixed `ETag` header name normalization.
+* Fixed `If-Modified-Since` evaluation.
+* Fixed precedence between `If-None-Match` and `If-Modified-Since`.
+* Fixed `If-Match: *` handling.
+* Fixed `If-None-Match: *` handling.
+* Fixed strong and weak ETag comparison for conditional requests.
+* Fixed `If-Range` entity-tag comparison.
+* Fixed `If-Range` HTTP-date comparison.
+* Fixed `412 Precondition Failed` responses from including representation-specific headers.
+* Fixed invalid and unsatisfiable Range request handling.
 
 
 ## [2.0.1] - 2026-08-10

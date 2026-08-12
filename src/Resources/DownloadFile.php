@@ -37,7 +37,7 @@ final readonly class DownloadFile implements DownloadResource
     /**
      * @throws DownloadException
      */
-    public static function create(string $filepath, ?string $filename = null, bool $detectMime = false): self
+    public static function create(string $filepath, ?string $filename = null, true|string $mime = ''): self
     {
         $filepath = CommonHelper::nullIfEmpty($filepath);
 
@@ -58,7 +58,7 @@ final readonly class DownloadFile implements DownloadResource
             $filepath,
             $filename,
             $filesize,
-            self::detectMimeType($filepath, $detectMime),
+            self::detectMimeType($filepath, $mime),
             ($lastModified = filemtime($filepath)) === false ? null : $lastModified
         );
     }
@@ -139,10 +139,11 @@ final readonly class DownloadFile implements DownloadResource
     /**
      * @throws DownloadException
      */
-    private static function detectMimeType(string $filepath, bool $detectMime): string
+    private static function detectMimeType(string $filepath, true|string $mime): string
     {
-        if ($detectMime === false) {
-            return DownloadConfig::DEFAULT_MIME;
+        if (is_string($mime)) {
+            $mime = trim($mime);
+            return $mime !== '' ? $mime : DownloadConfig::DEFAULT_MIME;
         }
 
         try {
