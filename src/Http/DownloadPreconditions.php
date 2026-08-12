@@ -14,14 +14,14 @@ final readonly class DownloadPreconditions
     private function __construct(
         private DownloadRequest $request,
         private DownloadResource $resource,
-        private ?DownloadETag $etag,
+        private DownloadETag $etag,
     ) {
     }
 
     public static function evaluate(
         DownloadRequest $request,
         DownloadResource $resource,
-        ?DownloadETag $etag
+        DownloadETag $etag
     ): DownloadPreconditionResult
     {
         $instance = new self($request, $resource, $etag);
@@ -68,10 +68,6 @@ final readonly class DownloadPreconditions
             return null;
         }
 
-        if ($this->etag === null) {
-            return DownloadPreconditionResult::preconditionFailed();
-        }
-
         if ($match === '*') {
             return DownloadPreconditionResult::proceed();
         }
@@ -99,10 +95,6 @@ final readonly class DownloadPreconditions
     private function evaluateIfNoneMatch(): ?DownloadPreconditionResult
     {
         if (($noneMatch = $this->request->getIfNoneMatch()) === null) {
-            return null;
-        }
-
-        if ($this->etag === null) {
             return null;
         }
 

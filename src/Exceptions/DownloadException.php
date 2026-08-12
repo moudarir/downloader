@@ -83,6 +83,11 @@ final class DownloadException extends Exception
         return new self("Unable to generate a multipart boundary: " . $message);
     }
 
+    public static function requiredInternalUri(): self
+    {
+        return new self("An internal URI is required for X-Accel-Redirect.");
+    }
+
     public static function generic(string $message): self
     {
         return new self($message);

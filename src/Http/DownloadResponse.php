@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Moudarir\Downloader\Http;
 
+use Moudarir\Downloader\Enums\ContentDisposition;
+use Moudarir\Downloader\Enums\ResponseAction;
 use Moudarir\Downloader\ETag\DownloadETag;
 use Moudarir\Downloader\Exceptions\DownloadException;
 use Moudarir\Downloader\Range\DownloadRange;
@@ -20,10 +22,10 @@ final class DownloadResponse
     private function __construct(
         private readonly DownloadHeaders  $headers,
         private readonly DownloadResource $resource,
-        private readonly ?DownloadETag    $etag = null,
+        private readonly DownloadRequest  $request,
+        private readonly ResponseAction   $responseAction,
+        private readonly DownloadETag     $etag,
         private readonly ?DownloadRange   $range = null,
-        private readonly bool             $isHead = false,
-        private readonly bool             $isServerSide = false,
     )
     {
     }
@@ -32,34 +34,34 @@ final class DownloadResponse
         int $statusCode,
         DownloadHeaders $headers,
         DownloadResource $resource,
-        ?DownloadETag $etag = null,
-        bool $isServerSide = false
+        DownloadRequest $request,
+        ResponseAction $responseAction,
+        DownloadETag $etag,
     ): self
     {
         return new self(
             $headers,
             $resource,
+            $request,
+            $responseAction,
             $etag,
-            isServerSide: $isServerSide
         )->setStatusCode($statusCode);
     }
 
     /**
      * @throws DownloadException
      */
-    public static function ok(
+    public static function create(
         DownloadHeaders $headers,
         DownloadResource $resource,
         DownloadRequest $request,
-        ?DownloadETag $etag = null,
-        bool $isPartial = false,
-        bool $isServerSide = false,
+        ResponseAction $responseAction,
+        DownloadETag $etag,
     ): self
     {
-        $headers->addContentDispositionHeader($resource->getFilename());
         $range = null;
 
-        if ($isPartial === true) {
+        if ($responseAction === ResponseAction::PARTIAL) {
             $headers->addAcceptRangesHeader();
 
             $result = DownloadRangeResolver::create($resource, $request, $etag);
@@ -70,20 +72,15 @@ final class DownloadResponse
                 return new self(
                     $headers,
                     $resource,
+                    $request,
+                    $responseAction,
                     $etag,
-                    isHead: $request->isHead(),
-                    isServerSide: $isServerSide
                 )
                     ->setContentLength(0)
                     ->setStatusCode(416);
             }
 
-            if ($result->isInvalid()) {
-                /*
-                 * Invalid Range syntax:
-                 * ignore the Range header and serve the full representation.
-                 */
-            } else {
+            if ($result->isInvalid() === false) {
                 $range = $result->getRange();
             }
         }
@@ -91,10 +88,10 @@ final class DownloadResponse
         return new self(
             $headers,
             $resource,
+            $request,
+            $responseAction,
             $etag,
             $range,
-            $request->isHead(),
-            $isServerSide
         );
     }
 
@@ -103,15 +100,78 @@ final class DownloadResponse
      */
     public function send(): void
     {
-        if ($this->isServerSide === false) {
+        if ($this->responseAction->isServerSide() === false) {
             @set_time_limit(0);
         }
 
         self::clearOutputBuffers();
+
         $this->headers
             ->addLastModifiedHeader($this->resource->getLastModified())
-            ->addETagHeader($this->etag?->getValue())
+            ->addETagHeader($this->etag->getValue())
             ->applyDefaultHeaders();
+
+        match ($this->statusCode) {
+            304 => $this->sendNotModified(),
+            412 => $this->sendPreconditionFailed(),
+            416 => $this->sendRangeNotSatisfiable(),
+            default => $this->sendRepresentation(),
+        };
+    }
+
+    public function inline(): self
+    {
+        $this->headers->setDisposition(ContentDisposition::INLINE);
+        return $this;
+    }
+
+    /**
+     * @throws DownloadException
+     */
+    public function addCacheControl(string $value): self
+    {
+        $this->headers->addHeader('Cache-Control', $value);
+        return $this;
+    }
+
+    /**
+     * 304 responses never contain a message body.
+     */
+    private function sendNotModified(): void
+    {
+        $this->buildHeaders();
+    }
+
+    /**
+     * 412 responses do not contain a representation in the current implementation.
+     *
+     * @throws DownloadException
+     */
+    private function sendPreconditionFailed(): void
+    {
+        $this->headers->addContentLengthHeader(0);
+
+        $this->buildHeaders();
+    }
+
+    /**
+     * 416 has nobody in the current implementation.
+     *
+     * @throws DownloadException
+     */
+    private function sendRangeNotSatisfiable(): void
+    {
+        $this->headers->addContentLengthHeader($this->contentLength ?? 0);
+
+        $this->buildHeaders();
+    }
+
+    /**
+     * @throws DownloadException
+     */
+    private function sendRepresentation(): void
+    {
+        $this->headers->addContentDispositionHeader($this->resource->getFilename());
 
         $multipart = null;
         $contentLength = $this->resource->getFilesize();
@@ -121,10 +181,12 @@ final class DownloadResponse
         if ($this->range !== null && $this->range->isPartial()) {
             if ($this->range->isMultipart()) {
                 $multipart = new DownloadMultipartResponse($this->resource, $this->range);
+
                 $contentLength = $multipart->getContentLength();
                 $contentType = $multipart->getContentType();
             } else {
                 $item = $this->range->getFirstItem();
+
                 $contentLength = $item->getLength();
                 $contentStart = $item->getStart();
 
@@ -143,28 +205,32 @@ final class DownloadResponse
 
         $this->headers->addContentType($contentType);
 
-        if (!isset($this->contentLength)) {
-            $this->contentLength = $contentLength;
+        $this->contentLength ??= $contentLength;
+
+        $this->headers->addContentLengthHeader($this->contentLength);
+
+        $this->buildHeaders();
+
+        if ($this->request->isHead() || $this->responseAction->isServerSide()) {
+            return;
         }
 
-        if ($this->statusCode !== 304) {
-            $this->headers->addContentLengthHeader($this->contentLength);
+        if ($multipart !== null) {
+            $multipart->output();
+
+            return;
         }
 
+        $this->resource->output($contentLength, $contentStart);
+    }
+
+    private function buildHeaders(): void
+    {
         foreach ($this->headers->all() as $name => $value) {
-            header($name.': '.$value);
+            header($name . ': ' . $value);
         }
 
         http_response_code($this->statusCode);
-
-        if ($this->isHead === false && $this->isServerSide === false) {
-            if ($multipart !== null) {
-                $multipart->output();
-                return;
-            }
-
-            $this->resource->output($contentLength, $contentStart);
-        }
     }
 
     private function setStatusCode(int $statusCode): self

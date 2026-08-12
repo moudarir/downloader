@@ -4,6 +4,46 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [2.1.0] - 2026-08-12
+
+### Breaking Changes
+
+- Replaced the previous `stream*()` API with explicit response actions through `ResponseAction`.
+- `Download::fromFile()` and `Download::fromData()` now return a `DownloadResponse` directly.
+- Responses must be sent explicitly with `DownloadResponse::send()`.
+- ETag generation is now mandatory for every download resource.
+
+### Added
+
+- Added `ResponseAction` to explicitly define how a response is delivered:
+  - `DEFAULT`
+  - `PARTIAL`
+  - `X_SEND_FILE`
+  - `X_ACCEL_REDIRECT`
+
+### Changed
+
+- Refactored response creation and delivery around `DownloadResponse`.
+- `X-Sendfile` and `X-Accel-Redirect` are now explicit response actions.
+- Improved HTTP precondition precedence and evaluation according to `RFC 9110`.
+- Improved `If-Range` handling for both entity tags and HTTP dates.
+- Improved handling of `206 Partial Content` and `416 Range Not Satisfiable`.
+- Improved multipart byte-range response handling.
+
+### Fixed
+
+- Fixed `ETag` header name normalization.
+- Fixed `If-Modified-Since` evaluation.
+- Fixed precedence between `If-None-Match` and `If-Modified-Since`.
+- Fixed `If-Match: *` handling.
+- Fixed `If-None-Match: *` handling.
+- Fixed strong and weak ETag comparison for conditional requests.
+- Fixed `If-Range` entity-tag comparison.
+- Fixed `If-Range` HTTP-date comparison.
+- Fixed `412 Precondition Failed` responses from including representation-specific headers.
+- Fixed invalid and unsatisfiable Range request handling.
+
+
 ## [2.0.1] - 2026-08-10
 
 ### Changed

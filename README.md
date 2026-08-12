@@ -2,6 +2,7 @@
 
 A lightweight and modern PHP library for streaming files and in-memory data with full support for HTTP conditional requests and byte range requests.
 
+
 ## Features
 
 - PHP 8.4+
@@ -9,7 +10,7 @@ A lightweight and modern PHP library for streaming files and in-memory data with
 - In-memory data downloads
 - HTTP Range Requests (RFC 9110)
 - Multipart byte ranges
-- ETag support
+- Mandatory ETag generation
 - Last-Modified support
 - Conditional requests
 - HEAD requests
@@ -17,14 +18,13 @@ A lightweight and modern PHP library for streaming files and in-memory data with
 - X-Accel-Redirect support
 - UTF-8 filenames (RFC 6266)
 
----
 
 ## Requirements
 
 - PHP 8.4+
 - `ext-iconv`
+- (optional) `mod_xsendfile` Apache module to download files with `ResponseAction::X_SEND_FILE` method. 
 
----
 
 ## Installation
 
@@ -32,97 +32,149 @@ A lightweight and modern PHP library for streaming files and in-memory data with
 composer require moudarir/downloader
 ```
 
----
 
 ## Usage
+
 
 ### Download a file
 
 ```php
-$response = Download::fromFile('/path/to/file.pdf')
-    ->stream();
+$response = Download::fromFile('/path/to/file.pdf');
 
 $response->send();
 ```
+
 
 ### Download with a custom filename
 
 ```php
-$response = Download::fromFile('/path/to/file.pdf', 'document.pdf')
-    ->stream();
+$response = Download::fromFile('/path/to/file.pdf', 'document.pdf');
 
 $response->send();
 ```
+
 
 ### Inline response
 
 ```php
-$response = Download::fromFile('/path/to/file.pdf')
-    ->inline()
-    ->stream();
+$response = Download::fromFile('/path/to/file.pdf')->inline();
 
 $response->send();
 ```
+
 
 ### Partial content / Range requests
 
 ```php
-$response = Download::fromFile('/path/to/video.mp4')
-    ->inline()
-    ->streamPartial();
+$response = Download::fromFile('/path/to/video.mp4', 'video.mp4', true, ResponseAction::PARTIAL)
+    ->inline();
 
 $response->send();
 ```
 
-`streamPartial()` supports HTTP Range requests and automatically handles full responses, single-range responses, multipart byte ranges, and unsatisfiable ranges.
+`ResponseAction::PARTIAL` enables HTTP Range request handling, including:
 
-> For browser-based media playback, use `inline()` together with `streamPartial()` to enable inline display and HTTP range requests.
+* full responses when no valid Range request is processed;
+* single-range responses;
+* multipart byte-range responses;
+* unsatisfiable ranges (`416 Range Not Satisfiable`).
+
+> For browser-based media playback, use `ResponseAction::PARTIAL` together with `inline()`.
+
 
 ### Download from data
 
 ```php
-$response = Download::fromData(
-    $data,
-    'document.txt',
-    'text/plain'
-)->stream();
+$response = Download::fromData($data, 'document.txt', 'text/plain');
 
 $response->send();
 ```
+
 
 ### Server-side file delivery
 
 For files, the response can be delegated to the web server using `X-Sendfile` or `X-Accel-Redirect`.
 
+#### Apache – `X-Sendfile`
+
 ```php
-$response = Download::fromFile('/path/to/file.pdf')
-    ->streamXSendFile();
+use Moudarir\Downloader\Download;
+use Moudarir\Downloader\Enums\ResponseAction;
+
+$response = Download::fromFile('/path/to/file.pdf', responseAction: ResponseAction::X_SEND_FILE);
 
 $response->send();
 ```
 
-Or with Nginx:
+#### Nginx – `X-Accel-Redirect`
 
 ```php
-$response = Download::fromFile('/path/to/file.pdf')
-    ->streamXAccelRedirect('/protected/file.pdf');
+use Moudarir\Downloader\Download;
+use Moudarir\Downloader\Enums\ResponseAction;
+
+$response = Download::fromFile(
+    '/path/to/file.pdf',
+    responseAction: ResponseAction::X_ACCEL_REDIRECT,
+    xAccelRedirectUri: '/protected/path/to/file.pdf'
+);
 
 $response->send();
 ```
 
-> **Note:** `stream()`, `streamPartial()`, `streamXSendFile()` and `streamXAccelRedirect()` return a `DownloadResponse` object. The response must be sent explicitly using `send()`.
+`X-Accel-Redirect` uses an internal URI configured for the web server. It is not required to be the physical filesystem path.
 
-## What's new in 2.0
+Server-side response actions are only available for file resources.
 
-* Added `DownloadResponse` to centralize HTTP response construction and delivery.
-* `stream()`, `streamPartial()`, `streamXSendFile()` and `streamXAccelRedirect()` now return a `DownloadResponse` object.
-* Improved HTTP Range and conditional request handling.
-* Improved ETag handling.
-* Added HTTP header name and value validation.
-* Improved `Content-Disposition` filename handling, including ASCII fallbacks for clients that do not support extended filename parameters.
-* Added `ext-iconv` dependency.
 
----
+### Response actions
+
+`Download::fromFile()` and `Download::fromData()` accept a `ResponseAction` to explicitly define the response mode.
+
+Available actions:
+
+| Action                             | Description                                             |
+|:-----------------------------------|:--------------------------------------------------------|
+| `ResponseAction::DEFAULT`          | Standard response                                       |
+| `ResponseAction::PARTIAL`          | HTTP Range request handling                             |
+| `ResponseAction::X_SEND_FILE`      | Delegate file delivery to the web server                |
+| `ResponseAction::X_ACCEL_REDIRECT` | Delegate file delivery through Nginx `X-Accel-Redirect` |
+
+The resulting `DownloadResponse` must always be sent explicitly:
+
+```php
+$response->send();
+```
+
+
+## ETag
+
+ETag generation is mandatory.
+
+The library automatically generates an ETag for every supported resource and uses it for HTTP conditional requests.
+
+Available strategies:
+
+* `ETagStrategy::MTIME`
+* `ETagStrategy::INODE`
+* `ETagStrategy::MD5`
+* `ETagStrategy::SHA256`
+* `ETagStrategy::SHA512`
+
+A strategy can optionally be selected when creating a download:
+
+```php
+use Moudarir\Downloader\Download;
+use Moudarir\Downloader\Enums\ETagStrategy;
+
+$response = Download::fromFile('/path/to/file.pdf', strategy: ETagStrategy::SHA256);
+
+$response->send();
+```
+
+If no strategy is specified, the library automatically selects the first strategy supported by the resource.
+
+The selected strategy must be supported by the resource. Otherwise, the library throws a `DownloadException` exception.
+
 
 ## HTTP Features
 
@@ -134,13 +186,29 @@ The library automatically supports:
 - If-None-Match
 - If-Modified-Since
 - If-Unmodified-Since
-- Range Requests
+- Range
 - If-Range
-- HEAD requests
+- HEAD
 
-All conditional request evaluation follows RFC 9110.
+Conditional request evaluation follows the precedence defined by `RFC 9110`.
 
----
+`If-Range` supports both strong ETag comparison and HTTP-date comparison.
+
+HTTP-date parsing supports the HTTP-date formats defined by `RFC 9110`.
+
+
+## HTTP Responses
+
+The library handles the following response statuses:
+
+* `200 OK`
+* `206 Partial Content`
+* `304 Not Modified`
+* `412 Precondition Failed`
+* `416 Range Not Satisfiable`
+
+`412 Precondition Failed` responses do not include representation headers such as `Content-Type`, `Content-Disposition` or the representation `Content-Length`.
+
 
 ## License
 

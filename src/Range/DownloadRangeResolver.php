@@ -15,7 +15,7 @@ final readonly class DownloadRangeResolver
 
     public function __construct(
         private DownloadRequest $request,
-        private ?DownloadETag $etag,
+        private DownloadETag $etag,
         private ?int $lastModified,
     ) {
     }
@@ -23,7 +23,7 @@ final readonly class DownloadRangeResolver
     /**
      * @throws DownloadException
      */
-    public static function create(DownloadResource $resource, DownloadRequest $request, ?DownloadETag $etag): DownloadRangeResult
+    public static function create(DownloadResource $resource, DownloadRequest $request, DownloadETag $etag): DownloadRangeResult
     {
         $resolver = new self($request, $etag, $resource->getLastModified());
 
@@ -50,8 +50,7 @@ final readonly class DownloadRangeResolver
          */
 
         if (str_starts_with($ifRange, '"') || str_starts_with($ifRange, 'W/"')) {
-            return $this->etag !== null
-                && $this->etag->matches($ifRange, false);
+            return $this->etag->matches($ifRange, false);
         }
 
         /*
