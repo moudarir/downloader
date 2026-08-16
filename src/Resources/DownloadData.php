@@ -70,7 +70,7 @@ final readonly class DownloadData implements DownloadResource
     {
         try {
             return hash($algorithm, $this->data);
-        } catch (\ValueError $exception) {
+        } catch (\ValueError) {
             return null;
         }
     }

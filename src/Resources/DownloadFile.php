@@ -90,11 +90,11 @@ final readonly class DownloadFile implements DownloadResource
 
     public function getHash(string $algorithm): ?string
     {
-        if (($hash = hash_file($algorithm, $this->filepath)) === false) {
+        try {
+            return hash_file($algorithm, $this->filepath);
+        } catch (\ValueError) {
             return null;
         }
-
-        return $hash;
     }
 
     public function output(int $length, int $start = 0): void
