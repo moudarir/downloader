@@ -8,24 +8,25 @@ use Moudarir\Downloader\Enums\ContentDisposition;
 use Moudarir\Downloader\Enums\ResponseAction;
 use Moudarir\Downloader\ETag\DownloadETag;
 use Moudarir\Downloader\Exceptions\DownloadException;
+use Moudarir\Downloader\Helpers\MetadataHelper;
 use Moudarir\Downloader\Range\DownloadRange;
 use Moudarir\Downloader\Range\DownloadRangeResolver;
 use Moudarir\Downloader\Resources\DownloadResource;
 
-final class DownloadResponse
+final readonly class DownloadResponse
 {
 
-    private int $statusCode = 200;
-
-    private ?int $contentLength = null;
-
     private function __construct(
-        private readonly DownloadHeaders  $headers,
-        private readonly DownloadResource $resource,
-        private readonly DownloadRequest  $request,
-        private readonly ResponseAction   $responseAction,
-        private readonly DownloadETag     $etag,
-        private readonly ?DownloadRange   $range = null,
+        private DownloadHeaders            $headers,
+        private DownloadResource           $resource,
+        private DownloadRequest            $request,
+        private ResponseAction             $responseAction,
+        private DownloadETag               $etag,
+        private int                        $statusCode,
+        private int                        $contentLength,
+        private ?string                    $contentType,
+        private ?DownloadRange             $range = null,
+        private ?DownloadMultipartResponse $multipart = null,
     )
     {
     }
@@ -45,7 +46,10 @@ final class DownloadResponse
             $request,
             $responseAction,
             $etag,
-        )->setStatusCode($statusCode);
+            $statusCode,
+            0,
+            null,
+        );
     }
 
     /**
@@ -59,7 +63,11 @@ final class DownloadResponse
         DownloadETag $etag,
     ): self
     {
+        $statusCode = 200;
+        $contentType = $resource->getMime();
+        $contentLength = $resource->getFilesize();
         $range = null;
+        $multipart = null;
 
         if ($responseAction === ResponseAction::PARTIAL) {
             $headers->addAcceptRangesHeader();
@@ -75,13 +83,27 @@ final class DownloadResponse
                     $request,
                     $responseAction,
                     $etag,
-                )
-                    ->setContentLength(0)
-                    ->setStatusCode(416);
+                    416,
+                    0,
+                    null,
+                );
             }
 
             if ($result->isInvalid() === false) {
                 $range = $result->getRange();
+
+                if ($range->isPartial()) {
+                    $statusCode = 206;
+
+                    if ($range->isMultipart()) {
+                        $multipart = new DownloadMultipartResponse($resource, $range);
+
+                        $contentType = $multipart->getContentType();
+                        $contentLength = $multipart->getContentLength();
+                    } else {
+                        $contentLength = $range->getFirstItem()->getLength();
+                    }
+                }
             }
         }
 
@@ -91,7 +113,11 @@ final class DownloadResponse
             $request,
             $responseAction,
             $etag,
+            $statusCode,
+            $contentLength,
+            $contentType,
             $range,
+            $multipart,
         );
     }
 
@@ -134,6 +160,19 @@ final class DownloadResponse
         return $this;
     }
 
+    public function metadata(): MetadataHelper
+    {
+        return MetadataHelper::create(
+            $this->resource,
+            $this->responseAction,
+            $this->etag,
+            $this->statusCode,
+            $this->contentLength,
+            $this->contentType,
+            $this->range,
+        );
+    }
+
     /**
      * 304 responses never contain a message body.
      */
@@ -155,13 +194,13 @@ final class DownloadResponse
     }
 
     /**
-     * 416 has nobody in the current implementation.
+     * 416 responses do not contain a message body in the current implementation.
      *
      * @throws DownloadException
      */
     private function sendRangeNotSatisfiable(): void
     {
-        $this->headers->addContentLengthHeader($this->contentLength ?? 0);
+        $this->headers->addContentLengthHeader(0);
 
         $this->buildHeaders();
     }
@@ -171,43 +210,27 @@ final class DownloadResponse
      */
     private function sendRepresentation(): void
     {
-        $this->headers->addContentDispositionHeader($this->resource->getFilename());
+        $this->headers
+            ->addContentDispositionHeader($this->resource->getFilename())
+            ->addContentType($this->contentType)
+            ->addContentLengthHeader($this->contentLength);
 
-        $multipart = null;
-        $contentLength = $this->resource->getFilesize();
         $contentStart = 0;
-        $contentType = $this->resource->getMime();
 
-        if ($this->range !== null && $this->range->isPartial()) {
-            if ($this->range->isMultipart()) {
-                $multipart = new DownloadMultipartResponse($this->resource, $this->range);
+        if ($this->range !== null && $this->range->isPartial() && !$this->range->isMultipart()) {
+            $item = $this->range->getFirstItem();
 
-                $contentLength = $multipart->getContentLength();
-                $contentType = $multipart->getContentType();
-            } else {
-                $item = $this->range->getFirstItem();
+            $contentStart = $item->getStart();
 
-                $contentLength = $item->getLength();
-                $contentStart = $item->getStart();
-
-                $this->headers->addContentRangeHeader(
-                    sprintf(
-                        'bytes %d-%d/%d',
-                        $contentStart,
-                        $item->getEnd(),
-                        $this->resource->getFilesize()
-                    )
-                );
-            }
-
-            $this->statusCode = 206;
+            $this->headers->addContentRangeHeader(
+                sprintf(
+                    'bytes %d-%d/%d',
+                    $contentStart,
+                    $item->getEnd(),
+                    $this->resource->getFilesize()
+                )
+            );
         }
-
-        $this->headers->addContentType($contentType);
-
-        $this->contentLength ??= $contentLength;
-
-        $this->headers->addContentLengthHeader($this->contentLength);
 
         $this->buildHeaders();
 
@@ -215,13 +238,13 @@ final class DownloadResponse
             return;
         }
 
-        if ($multipart !== null) {
-            $multipart->output();
+        if ($this->multipart !== null) {
+            $this->multipart->output();
 
             return;
         }
 
-        $this->resource->output($contentLength, $contentStart);
+        $this->resource->output($this->contentLength, $contentStart);
     }
 
     private function buildHeaders(): void
@@ -231,18 +254,6 @@ final class DownloadResponse
         }
 
         http_response_code($this->statusCode);
-    }
-
-    private function setStatusCode(int $statusCode): self
-    {
-        $this->statusCode = $statusCode;
-        return $this;
-    }
-
-    private function setContentLength(int $contentLength): self
-    {
-        $this->contentLength = $contentLength;
-        return $this;
     }
 
     private static function clearOutputBuffers(): void
