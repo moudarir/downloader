@@ -163,12 +163,7 @@ final class DownloadHeaders
         $extension = pathinfo($filename, PATHINFO_EXTENSION);
         $basename = pathinfo($filename, PATHINFO_FILENAME);
 
-        $basename = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $basename);
-
-        if ($basename === false) {
-            $basename = '';
-        }
-
+        $basename = CommonHelper::removeAccents($basename);
         $basename = preg_replace('/[^\x20-\x7E]/', '', $basename) ?? '';
         $basename = trim($basename);
 
@@ -179,14 +174,11 @@ final class DownloadHeaders
         $result = $basename;
 
         if ($extension !== '') {
-            $extension = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $extension);
+            $extension = CommonHelper::removeAccents($extension);
+            $extension = preg_replace('/[^A-Za-z0-9]/', '', $extension) ?? '';
 
-            if ($extension !== false) {
-                $extension = preg_replace('/[^A-Za-z0-9]/', '', $extension) ?? '';
-
-                if ($extension !== '') {
-                    $result .= '.' . $extension;
-                }
+            if ($extension !== '') {
+                $result .= '.' . $extension;
             }
         }
 
