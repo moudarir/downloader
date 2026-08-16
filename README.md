@@ -22,7 +22,6 @@ A lightweight and modern PHP library for streaming files and in-memory data with
 ## Requirements
 
 - PHP 8.4+
-- `ext-iconv`
 - (optional) `mod_xsendfile` Apache module to download files with `ResponseAction::X_SEND_FILE` method. 
 
 
@@ -150,6 +149,34 @@ The resulting `DownloadResponse` must always be sent explicitly:
 $response->send();
 ```
 
+
+### Response metadata
+
+`Download::fromFile()` and `Download::fromData()` return a `DownloadResponse` instance.
+
+Response metadata can be inspected before sending the response through `DownloadResponse::metadata()`:
+
+```php
+$response = Download::fromFile('/path/to/file.pdf', mime: 'application/pdf');
+
+$metadata = $response->metadata();
+
+echo $metadata->statusCode();
+echo $metadata->contentLength();
+echo $metadata->contentType();
+echo $metadata->filename();
+echo $metadata->etagValue();
+
+$response->send();
+```
+
+Available metadata includes:
+
+* resource information such as filepath, filename, filesize, MIME type and Last-Modified;
+* response status, Content-Length and Content-Type;
+* the selected ResponseAction;
+* ETag value and weak/strong state;
+* Range information, including single and multipart ranges.
 
 ## ETag
 

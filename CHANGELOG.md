@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [2.3.0] - 2026-08-16
+
+### Added
+
+* Added `DownloadResponse::metadata()` to inspect response metadata before sending the response.
+* Added `MetadataHelper` to expose resource, response, ETag and Range metadata.
+* Added `composer test`, `composer test:unit` and `composer test:integration` commands for the PHPUnit test suite.
+* Added HTTP integration examples under `examples/`.
+
+### Changed
+
+* Refactored filename sanitization to use deterministic accent removal instead of `ext-iconv`.
+* Removed the `ext-iconv` dependency.
+* Improved RFC 9110 HTTP-date parsing, including RFC 850 year resolution and validation of HTTP date formats.
+* Improved hash handling for invalid algorithms in file and in-memory resources.
+
+
 ## [2.2.0] - 2026-08-12
 
 ### Breaking Changes
