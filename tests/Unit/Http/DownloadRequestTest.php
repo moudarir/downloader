@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Moudarir\Downloader\Tests\Unit\Http;
@@ -10,6 +11,7 @@ use PHPUnit\Framework\TestCase;
 
 final class DownloadRequestTest extends TestCase
 {
+
     /**
      * @var array<string, mixed>
      */
@@ -36,11 +38,7 @@ final class DownloadRequestTest extends TestCase
 
         $request = DownloadRequest::create();
 
-        self::assertSame(
-            RequestMethod::GET,
-            $request->getMethod()
-        );
-
+        self::assertSame(RequestMethod::GET, $request->getMethod());
         self::assertTrue($request->isGet());
         self::assertFalse($request->isHead());
         self::assertTrue($request->isSafeMethod());
@@ -52,11 +50,7 @@ final class DownloadRequestTest extends TestCase
 
         $request = DownloadRequest::create();
 
-        self::assertSame(
-            RequestMethod::HEAD,
-            $request->getMethod()
-        );
-
+        self::assertSame(RequestMethod::HEAD, $request->getMethod());
         self::assertFalse($request->isGet());
         self::assertTrue($request->isHead());
         self::assertTrue($request->isSafeMethod());
@@ -66,11 +60,7 @@ final class DownloadRequestTest extends TestCase
     {
         $request = DownloadRequest::create();
 
-        self::assertSame(
-            RequestMethod::GET,
-            $request->getMethod()
-        );
-
+        self::assertSame(RequestMethod::GET, $request->getMethod());
         self::assertTrue($request->isGet());
         self::assertFalse($request->isHead());
         self::assertTrue($request->isSafeMethod());
@@ -83,10 +73,7 @@ final class DownloadRequestTest extends TestCase
 
         $request = DownloadRequest::create();
 
-        self::assertSame(
-            'bytes=0-1023',
-            $request->getRange()
-        );
+        self::assertSame('bytes=0-1023', $request->getRange());
     }
 
     public function testItReadsIfRangeHeader(): void
@@ -96,10 +83,7 @@ final class DownloadRequestTest extends TestCase
 
         $request = DownloadRequest::create();
 
-        self::assertSame(
-            '"etag-value"',
-            $request->getIfRange()
-        );
+        self::assertSame('"etag-value"', $request->getIfRange());
     }
 
     public function testItReadsIfMatchHeader(): void
@@ -109,10 +93,7 @@ final class DownloadRequestTest extends TestCase
 
         $request = DownloadRequest::create();
 
-        self::assertSame(
-            '"etag-value"',
-            $request->getIfMatch()
-        );
+        self::assertSame('"etag-value"', $request->getIfMatch());
     }
 
     public function testItReadsIfNoneMatchHeader(): void
@@ -122,17 +103,13 @@ final class DownloadRequestTest extends TestCase
 
         $request = DownloadRequest::create();
 
-        self::assertSame(
-            '"etag-value"',
-            $request->getIfNoneMatch()
-        );
+        self::assertSame('"etag-value"', $request->getIfNoneMatch());
     }
 
     public function testItParsesIfModifiedSince(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'GET';
-        $_SERVER['HTTP_IF_MODIFIED_SINCE'] =
-            'Sun, 09 Aug 2026 11:17:59 GMT';
+        $_SERVER['HTTP_IF_MODIFIED_SINCE'] = 'Sun, 09 Aug 2026 11:17:59 GMT';
 
         $request = DownloadRequest::create();
 
@@ -145,8 +122,7 @@ final class DownloadRequestTest extends TestCase
     public function testItParsesIfUnmodifiedSince(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'GET';
-        $_SERVER['HTTP_IF_UNMODIFIED_SINCE'] =
-            'Sun, 09 Aug 2026 11:17:59 GMT';
+        $_SERVER['HTTP_IF_UNMODIFIED_SINCE'] = 'Sun, 09 Aug 2026 11:17:59 GMT';
 
         $request = DownloadRequest::create();
 
@@ -207,9 +183,7 @@ final class DownloadRequestTest extends TestCase
         $_SERVER['REQUEST_METHOD'] = 'POST';
 
         self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains(
-            'The HTTP request method `POST` is not supported.'
-        );
+        self::expectExceptionMessageIsOrContains("The HTTP request method `POST` is not supported.");
 
         DownloadRequest::create();
     }
@@ -219,9 +193,7 @@ final class DownloadRequestTest extends TestCase
         $_SERVER['REQUEST_METHOD'] = 'PUT';
 
         self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains(
-            'The HTTP request method `PUT` is not supported.'
-        );
+        self::expectExceptionMessageIsOrContains("The HTTP request method `PUT` is not supported.");
 
         DownloadRequest::create();
     }
@@ -232,11 +204,7 @@ final class DownloadRequestTest extends TestCase
 
         $request = DownloadRequest::create();
 
-        self::assertSame(
-            RequestMethod::HEAD,
-            $request->getMethod()
-        );
-
+        self::assertSame(RequestMethod::HEAD, $request->getMethod());
         self::assertTrue($request->isHead());
         self::assertTrue($request->isSafeMethod());
     }
@@ -248,47 +216,23 @@ final class DownloadRequestTest extends TestCase
         $_SERVER['HTTP_IF_RANGE'] = '"etag-range"';
         $_SERVER['HTTP_IF_MATCH'] = '"etag-match"';
         $_SERVER['HTTP_IF_NONE_MATCH'] = '"etag-none"';
-        $_SERVER['HTTP_IF_MODIFIED_SINCE'] =
-            'Sun, 09 Aug 2026 11:17:59 GMT';
-        $_SERVER['HTTP_IF_UNMODIFIED_SINCE'] =
-            'Mon, 10 Aug 2026 11:17:59 GMT';
+        $_SERVER['HTTP_IF_MODIFIED_SINCE'] = 'Sun, 09 Aug 2026 11:17:59 GMT';
+        $_SERVER['HTTP_IF_UNMODIFIED_SINCE'] = 'Mon, 10 Aug 2026 11:17:59 GMT';
 
         $request = DownloadRequest::create();
 
-        self::assertSame(
-            RequestMethod::GET,
-            $request->getMethod()
-        );
-
+        self::assertSame(RequestMethod::GET, $request->getMethod());
         self::assertTrue($request->isGet());
         self::assertFalse($request->isHead());
         self::assertTrue($request->isSafeMethod());
-
-        self::assertSame(
-            'bytes=0-99',
-            $request->getRange()
-        );
-
-        self::assertSame(
-            '"etag-range"',
-            $request->getIfRange()
-        );
-
-        self::assertSame(
-            '"etag-match"',
-            $request->getIfMatch()
-        );
-
-        self::assertSame(
-            '"etag-none"',
-            $request->getIfNoneMatch()
-        );
-
+        self::assertSame('bytes=0-99', $request->getRange());
+        self::assertSame('"etag-range"', $request->getIfRange());
+        self::assertSame('"etag-match"', $request->getIfMatch());
+        self::assertSame('"etag-none"', $request->getIfNoneMatch());
         self::assertSame(
             strtotime('Sun, 09 Aug 2026 11:17:59 GMT'),
             $request->getIfModifiedSince()
         );
-
         self::assertSame(
             strtotime('Mon, 10 Aug 2026 11:17:59 GMT'),
             $request->getIfUnmodifiedSince()

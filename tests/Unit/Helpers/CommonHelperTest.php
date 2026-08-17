@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Moudarir\Downloader\Tests\Unit\Helpers;
@@ -9,52 +10,39 @@ use PHPUnit\Framework\TestCase;
 
 final class CommonHelperTest extends TestCase
 {
+
     public function testItReturnsNullForNullInput(): void
     {
-        self::assertNull(
-            CommonHelper::nullIfEmpty(null)
-        );
+        self::assertNull(CommonHelper::nullIfEmpty(null));
     }
 
     public function testItReturnsNullForEmptyString(): void
     {
-        self::assertNull(
-            CommonHelper::nullIfEmpty('')
-        );
+        self::assertNull(CommonHelper::nullIfEmpty(''));
     }
 
     public function testItReturnsNullForWhitespaceOnlyString(): void
     {
-        self::assertNull(
-            CommonHelper::nullIfEmpty('   ')
-        );
+        self::assertNull(CommonHelper::nullIfEmpty('   '));
     }
 
     public function testItTrimsNonEmptyString(): void
     {
-        self::assertSame(
-            'hello',
-            CommonHelper::nullIfEmpty('  hello  ')
-        );
+        self::assertSame('hello', CommonHelper::nullIfEmpty('  hello  '));
     }
 
     public function testItReturnsAsciiStringUnchanged(): void
     {
         $value = 'Hello World 123';
 
-        self::assertSame(
-            $value,
-            CommonHelper::removeAccents($value)
-        );
+        self::assertSame($value, CommonHelper::removeAccents($value));
     }
 
     public function testItRemovesLatinAccents(): void
     {
         self::assertSame(
             'aeiou AEIOU n N c C',
-            CommonHelper::removeAccents(
-                'àéïôü ÀÉÏÔÜ ñ Ñ ç Ç'
-            )
+            CommonHelper::removeAccents('àéïôü ÀÉÏÔÜ ñ Ñ ç Ç')
         );
     }
 
@@ -62,9 +50,7 @@ final class CommonHelperTest extends TestCase
     {
         self::assertSame(
             'AE ae OE oe IJ ij',
-            CommonHelper::removeAccents(
-                'Æ æ Œ œ Ĳ ĳ'
-            )
+            CommonHelper::removeAccents('Æ æ Œ œ Ĳ ĳ')
         );
     }
 
@@ -78,24 +64,15 @@ final class CommonHelperTest extends TestCase
 
     public function testItConvertsSpecialSymbolsHandledByTheMapping(): void
     {
-        self::assertSame(
-            'E',
-            CommonHelper::removeAccents('€')
-        );
-
-        self::assertSame(
-            '',
-            CommonHelper::removeAccents('£')
-        );
+        self::assertSame('E', CommonHelper::removeAccents('€'));
+        self::assertSame('', CommonHelper::removeAccents('£'));
     }
 
     public function testItConvertsExtendedLatinCharacters(): void
     {
         self::assertSame(
             'AaCcDdEeGgHhIiJjKkLlNnOoRrSsTtUuWwYyZz',
-            CommonHelper::removeAccents(
-                'ĀăĆĉĎđĒěĞğĤħĨĩĴĵĶķĹłŃňŌŏŔřŚšŢťŨŭŴŵŶŷŹž'
-            )
+            CommonHelper::removeAccents('ĀăĆĉĎđĒěĞğĤħĨĩĴĵĶķĹłŃňŌŏŔřŚšŢťŨŭŴŵŶŷŹž')
         );
     }
 
@@ -103,9 +80,7 @@ final class CommonHelperTest extends TestCase
     {
         self::assertSame(
             'AOUEaoue',
-            CommonHelper::removeAccents(
-                'ẢƠỦỀãờưế'
-            )
+            CommonHelper::removeAccents('ẢƠỦỀãờưế')
         );
     }
 
@@ -113,79 +88,60 @@ final class CommonHelperTest extends TestCase
     {
         self::assertSame(
             'UuUuAaIiOoUuUu',
-            CommonHelper::removeAccents(
-                'ǕǖǗǘǍǎǏǐǑǒǓǔǙǚ'
-            )
+            CommonHelper::removeAccents('ǕǖǗǘǍǎǏǐǑǒǓǔǙǚ')
         );
     }
 
     public function testItRemovesCombiningMarksFromDecomposedCharacters(): void
     {
-        $text = "e\u{0301}";
-
         self::assertSame(
             'e',
-            CommonHelper::removeAccents($text)
+            CommonHelper::removeAccents("e\u{0301}")
         );
     }
 
     public function testItRemovesMultipleCombiningMarks(): void
     {
-        $text = "e\u{0301}\u{0323}";
-
         self::assertSame(
             'e',
-            CommonHelper::removeAccents($text)
+            CommonHelper::removeAccents("e\u{0301}\u{0323}")
         );
     }
 
     public function testItHandlesAStringContainingBothComposedAndDecomposedCharacters(): void
     {
-        $text = "é e\u{0301} à a\u{0300}";
-
         self::assertSame(
             'e e a a',
-            CommonHelper::removeAccents($text)
+            CommonHelper::removeAccents("é e\u{0301} à a\u{0300}")
         );
     }
 
     public function testItPreservesSpacesAndPunctuation(): void
     {
-        $text = 'Été 2026 - déjà prêt !';
-
         self::assertSame(
             'Ete 2026 - deja pret !',
-            CommonHelper::removeAccents($text)
+            CommonHelper::removeAccents('Été 2026 - déjà prêt !')
         );
     }
 
     public function testItReturnsEmptyStringForEmptyInput(): void
     {
-        self::assertSame(
-            '',
-            CommonHelper::removeAccents('')
-        );
+        self::assertSame('', CommonHelper::removeAccents(''));
     }
 
     public function testItPreservesInvalidUtf8WithoutThrowing(): void
     {
         $text = "hello\xFFworld";
-
         $result = CommonHelper::removeAccents($text);
 
-        self::assertSame(
-            $text,
-            $result
-        );
+        self::assertSame($text, $result);
     }
 
     public function testItDoesNotUseLocaleDependentTransliteration(): void
     {
         self::assertSame(
             'video ete.mp4',
-            CommonHelper::removeAccents(
-                'vidéo été.mp4'
-            )
+            CommonHelper::removeAccents('vidéo été.mp4')
         );
     }
 
@@ -216,9 +172,7 @@ final class CommonHelperTest extends TestCase
     public function testItRejectsEmptyHeaderName(): void
     {
         self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains(
-            'Invalid HTTP header name'
-        );
+        self::expectExceptionMessageIsOrContains("Invalid HTTP header name");
 
         CommonHelper::validateHeaderName('');
     }
@@ -226,9 +180,7 @@ final class CommonHelperTest extends TestCase
     public function testItRejectsWhitespaceOnlyHeaderName(): void
     {
         self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains(
-            'Invalid HTTP header name'
-        );
+        self::expectExceptionMessageIsOrContains("Invalid HTTP header name");
 
         CommonHelper::validateHeaderName('   ');
     }
@@ -236,9 +188,7 @@ final class CommonHelperTest extends TestCase
     public function testItRejectsHeaderNameContainingWhitespace(): void
     {
         self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains(
-            'Invalid HTTP header name'
-        );
+        self::expectExceptionMessageIsOrContains("Invalid HTTP header name");
 
         CommonHelper::validateHeaderName('Content Type');
     }
@@ -246,9 +196,7 @@ final class CommonHelperTest extends TestCase
     public function testItRejectsUnknownHeaderName(): void
     {
         self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains(
-            'Invalid HTTP header name'
-        );
+        self::expectExceptionMessageIsOrContains("Invalid HTTP header name");
 
         CommonHelper::validateHeaderName('X-Unknown-Header');
     }
@@ -265,45 +213,30 @@ final class CommonHelperTest extends TestCase
 
     public function testItPreservesEmptyHeaderValue(): void
     {
-        self::assertSame(
-            '',
-            CommonHelper::validateHeaderValue('')
-        );
+        self::assertSame('', CommonHelper::validateHeaderValue(''));
     }
 
     public function testItRejectsCarriageReturnInHeaderValue(): void
     {
         self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains(
-            'Invalid HTTP header value'
-        );
+        self::expectExceptionMessageIsOrContains("Invalid HTTP header value");
 
-        CommonHelper::validateHeaderValue(
-            "text/plain\rX-Test: injected"
-        );
+        CommonHelper::validateHeaderValue("text/plain\rX-Test: injected");
     }
 
     public function testItRejectsLineFeedInHeaderValue(): void
     {
         self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains(
-            'Invalid HTTP header value'
-        );
+        self::expectExceptionMessageIsOrContains("Invalid HTTP header value");
 
-        CommonHelper::validateHeaderValue(
-            "text/plain\nX-Test: injected"
-        );
+        CommonHelper::validateHeaderValue("text/plain\nX-Test: injected");
     }
 
     public function testItRejectsCarriageReturnLineFeedInHeaderValue(): void
     {
         self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains(
-            'Invalid HTTP header value'
-        );
+        self::expectExceptionMessageIsOrContains("Invalid HTTP header value");
 
-        CommonHelper::validateHeaderValue(
-            "text/plain\r\nX-Test: injected"
-        );
+        CommonHelper::validateHeaderValue("text/plain\r\nX-Test: injected");
     }
 }

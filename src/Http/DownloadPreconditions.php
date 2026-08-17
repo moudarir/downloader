@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Moudarir\Downloader\Http;
 
-use Moudarir\Downloader\Enums\PreconditionStatus;
+use Moudarir\Downloader\Enums\StatusCode;
 use Moudarir\Downloader\ETag\DownloadETag;
 use Moudarir\Downloader\Resources\DownloadResource;
 
@@ -104,8 +104,8 @@ final readonly class DownloadPreconditions
 
         return new DownloadPreconditionResult(
             $this->request->isSafeMethod()
-                ? PreconditionStatus::NOT_MODIFIED
-                : PreconditionStatus::PRECONDITION_FAILED
+                ? StatusCode::NOT_MODIFIED
+                : StatusCode::PRECONDITION_FAILED
         );
     }
 

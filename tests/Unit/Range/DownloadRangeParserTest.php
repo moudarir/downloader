@@ -10,14 +10,12 @@ use PHPUnit\Framework\TestCase;
 
 final class DownloadRangeParserTest extends TestCase
 {
+
     private const int FILESIZE = 100;
 
     public function testItParsesAnExplicitRange(): void
     {
-        $result = DownloadRangeParser::parse(
-            'bytes=0-9',
-            self::FILESIZE
-        );
+        $result = DownloadRangeParser::parse('bytes=0-9', self::FILESIZE);
 
         self::assertFalse($result->isInvalid());
         self::assertFalse($result->isUnsatisfiable());
@@ -39,10 +37,7 @@ final class DownloadRangeParserTest extends TestCase
 
     public function testItParsesAnOpenEndedRange(): void
     {
-        $result = DownloadRangeParser::parse(
-            'bytes=90-',
-            self::FILESIZE
-        );
+        $result = DownloadRangeParser::parse('bytes=90-', self::FILESIZE);
 
         self::assertFalse($result->isInvalid());
         self::assertFalse($result->isUnsatisfiable());
@@ -57,10 +52,7 @@ final class DownloadRangeParserTest extends TestCase
 
     public function testItParsesASuffixRange(): void
     {
-        $result = DownloadRangeParser::parse(
-            'bytes=-10',
-            self::FILESIZE
-        );
+        $result = DownloadRangeParser::parse('bytes=-10', self::FILESIZE);
 
         self::assertFalse($result->isInvalid());
         self::assertFalse($result->isUnsatisfiable());
@@ -75,10 +67,7 @@ final class DownloadRangeParserTest extends TestCase
 
     public function testItLimitsSuffixRangeToFileSize(): void
     {
-        $result = DownloadRangeParser::parse(
-            'bytes=-999999',
-            self::FILESIZE
-        );
+        $result = DownloadRangeParser::parse('bytes=-999999', self::FILESIZE);
 
         self::assertFalse($result->isInvalid());
         self::assertFalse($result->isUnsatisfiable());
@@ -93,10 +82,7 @@ final class DownloadRangeParserTest extends TestCase
 
     public function testItClampsEndToFileSize(): void
     {
-        $result = DownloadRangeParser::parse(
-            'bytes=90-999',
-            self::FILESIZE
-        );
+        $result = DownloadRangeParser::parse('bytes=90-999', self::FILESIZE);
 
         self::assertFalse($result->isInvalid());
         self::assertFalse($result->isUnsatisfiable());
@@ -110,10 +96,7 @@ final class DownloadRangeParserTest extends TestCase
 
     public function testItRejectsMissingBytesUnit(): void
     {
-        $result = DownloadRangeParser::parse(
-            'items=0-9',
-            self::FILESIZE
-        );
+        $result = DownloadRangeParser::parse('items=0-9', self::FILESIZE);
 
         self::assertTrue($result->isInvalid());
         self::assertNull($result->getRange());
@@ -121,10 +104,7 @@ final class DownloadRangeParserTest extends TestCase
 
     public function testItRejectsMalformedRange(): void
     {
-        $result = DownloadRangeParser::parse(
-            'bytes=abc-def',
-            self::FILESIZE
-        );
+        $result = DownloadRangeParser::parse('bytes=abc-def', self::FILESIZE);
 
         self::assertTrue($result->isInvalid());
         self::assertNull($result->getRange());
@@ -132,10 +112,7 @@ final class DownloadRangeParserTest extends TestCase
 
     public function testItRejectsEmptyRange(): void
     {
-        $result = DownloadRangeParser::parse(
-            'bytes=-',
-            self::FILESIZE
-        );
+        $result = DownloadRangeParser::parse('bytes=-', self::FILESIZE);
 
         self::assertTrue($result->isInvalid());
         self::assertNull($result->getRange());
@@ -143,10 +120,7 @@ final class DownloadRangeParserTest extends TestCase
 
     public function testItRejectsRangeWithEndBeforeStart(): void
     {
-        $result = DownloadRangeParser::parse(
-            'bytes=60-50',
-            self::FILESIZE
-        );
+        $result = DownloadRangeParser::parse('bytes=60-50', self::FILESIZE);
 
         self::assertTrue($result->isInvalid());
         self::assertNull($result->getRange());
@@ -154,10 +128,7 @@ final class DownloadRangeParserTest extends TestCase
 
     public function testItRejectsZeroLengthSuffixRange(): void
     {
-        $result = DownloadRangeParser::parse(
-            'bytes=-0',
-            self::FILESIZE
-        );
+        $result = DownloadRangeParser::parse('bytes=-0', self::FILESIZE);
 
         self::assertTrue($result->isInvalid());
         self::assertNull($result->getRange());
@@ -165,10 +136,7 @@ final class DownloadRangeParserTest extends TestCase
 
     public function testItReturnsUnsatisfiableForStartAtFileSize(): void
     {
-        $result = DownloadRangeParser::parse(
-            'bytes=100-',
-            self::FILESIZE
-        );
+        $result = DownloadRangeParser::parse('bytes=100-', self::FILESIZE);
 
         self::assertFalse($result->isInvalid());
         self::assertTrue($result->isUnsatisfiable());
@@ -177,10 +145,7 @@ final class DownloadRangeParserTest extends TestCase
 
     public function testItReturnsUnsatisfiableForStartBeyondFileSize(): void
     {
-        $result = DownloadRangeParser::parse(
-            'bytes=999-',
-            self::FILESIZE
-        );
+        $result = DownloadRangeParser::parse('bytes=999-', self::FILESIZE);
 
         self::assertFalse($result->isInvalid());
         self::assertTrue($result->isUnsatisfiable());
@@ -189,10 +154,7 @@ final class DownloadRangeParserTest extends TestCase
 
     public function testItIgnoresAnUnsatisfiableRangeWhenAnotherRangeIsValid(): void
     {
-        $result = DownloadRangeParser::parse(
-            'bytes=0-9,999-',
-            self::FILESIZE
-        );
+        $result = DownloadRangeParser::parse('bytes=0-9,999-', self::FILESIZE);
 
         self::assertFalse($result->isInvalid());
         self::assertFalse($result->isUnsatisfiable());
@@ -204,16 +166,12 @@ final class DownloadRangeParserTest extends TestCase
 
         $item = $range->getFirstItem();
 
-        self::assertSame(0, $item->getStart());
-        self::assertSame(9, $item->getEnd());
+        self::assertSame([0, 9], [$item->getStart(), $item->getEnd()]);
     }
 
     public function testItReturnsUnsatisfiableWhenAllRangesAreUnsatisfiable(): void
     {
-        $result = DownloadRangeParser::parse(
-            'bytes=100-,200-',
-            self::FILESIZE
-        );
+        $result = DownloadRangeParser::parse('bytes=100-,200-', self::FILESIZE);
 
         self::assertFalse($result->isInvalid());
         self::assertTrue($result->isUnsatisfiable());
@@ -222,10 +180,7 @@ final class DownloadRangeParserTest extends TestCase
 
     public function testItMergesAdjacentRanges(): void
     {
-        $result = DownloadRangeParser::parse(
-            'bytes=0-9,10-19',
-            self::FILESIZE
-        );
+        $result = DownloadRangeParser::parse('bytes=0-9,10-19', self::FILESIZE);
 
         self::assertFalse($result->isInvalid());
         self::assertFalse($result->isUnsatisfiable());
@@ -237,16 +192,12 @@ final class DownloadRangeParserTest extends TestCase
 
         $item = $range->getFirstItem();
 
-        self::assertSame(0, $item->getStart());
-        self::assertSame(19, $item->getEnd());
+        self::assertSame([0, 19], [$item->getStart(), $item->getEnd()]);
     }
 
     public function testItMergesOverlappingRanges(): void
     {
-        $result = DownloadRangeParser::parse(
-            'bytes=0-9,5-19',
-            self::FILESIZE
-        );
+        $result = DownloadRangeParser::parse('bytes=0-9,5-19', self::FILESIZE);
 
         self::assertFalse($result->isInvalid());
         self::assertFalse($result->isUnsatisfiable());
@@ -258,68 +209,44 @@ final class DownloadRangeParserTest extends TestCase
 
         $item = $range->getFirstItem();
 
-        self::assertSame(0, $item->getStart());
-        self::assertSame(19, $item->getEnd());
+        self::assertSame([0, 19], [$item->getStart(), $item->getEnd()]);
     }
 
     public function testItSortsRangesBeforeMerging(): void
     {
-        $result = DownloadRangeParser::parse(
-            'bytes=20-29,0-9',
-            self::FILESIZE
-        );
+        $result = DownloadRangeParser::parse('bytes=20-29,0-9', self::FILESIZE);
 
         self::assertFalse($result->isInvalid());
         self::assertFalse($result->isUnsatisfiable());
 
         $range = $result->getRange();
+        $rangeItems = $range->getItems();
 
         self::assertNotNull($range);
-        self::assertCount(2, $range->getItems());
-
-        self::assertSame(
-            0,
-            $range->getItems()[0]->getStart()
-        );
-
-        self::assertSame(
-            20,
-            $range->getItems()[1]->getStart()
-        );
+        self::assertCount(2, $rangeItems);
+        self::assertSame([0, 20], [$rangeItems[0]->getStart(), $rangeItems[1]->getStart()]);
     }
 
     public function testItCreatesMultipartRangeForMultipleDistinctRanges(): void
     {
-        $result = DownloadRangeParser::parse(
-            'bytes=0-9,20-29',
-            self::FILESIZE
-        );
+        $result = DownloadRangeParser::parse('bytes=0-9,20-29', self::FILESIZE);
 
         self::assertFalse($result->isInvalid());
         self::assertFalse($result->isUnsatisfiable());
 
         $range = $result->getRange();
+        $boundary = $range->getBoundary();
 
         self::assertNotNull($range);
         self::assertTrue($range->isMultipart());
         self::assertCount(2, $range->getItems());
-
-        self::assertNotNull($range->getBoundary());
-
-        $boundary = $range->getBoundary();
-
-        self::assertMatchesRegularExpression(
-            '/^[a-f0-9]{32}$/',
-            $boundary
-        );
+        self::assertNotNull($boundary);
+        self::assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $boundary);
     }
 
     public function testItDoesNotCreateMultipartRangeAfterRangesAreMerged(): void
     {
-        $result = DownloadRangeParser::parse(
-            'bytes=0-9,5-19',
-            self::FILESIZE
-        );
+        $result = DownloadRangeParser::parse('bytes=0-9,5-19', self::FILESIZE);
 
         $range = $result->getRange();
 
@@ -335,11 +262,7 @@ final class DownloadRangeParserTest extends TestCase
         for ($i = 0; $i < DownloadConfig::MAX_RANGE_ITEMS; ++$i) {
             $start = $i * 2;
 
-            $ranges[] = sprintf(
-                '%d-%d',
-                $start,
-                $start
-            );
+            $ranges[] = sprintf('%d-%d', $start, $start);
         }
 
         $result = DownloadRangeParser::parse(
@@ -349,7 +272,6 @@ final class DownloadRangeParserTest extends TestCase
 
         self::assertFalse($result->isInvalid());
         self::assertFalse($result->isUnsatisfiable());
-
         self::assertNotNull($result->getRange());
     }
 
@@ -360,11 +282,7 @@ final class DownloadRangeParserTest extends TestCase
         for ($i = 0; $i <= DownloadConfig::MAX_RANGE_ITEMS; ++$i) {
             $start = $i * 2;
 
-            $ranges[] = sprintf(
-                '%d-%d',
-                $start,
-                $start
-            );
+            $ranges[] = sprintf('%d-%d', $start, $start);
         }
 
         $result = DownloadRangeParser::parse(
@@ -378,36 +296,22 @@ final class DownloadRangeParserTest extends TestCase
 
     public function testItHandlesWhitespaceAroundRanges(): void
     {
-        $result = DownloadRangeParser::parse(
-            'bytes= 0-9, 20-29 ',
-            self::FILESIZE
-        );
+        $result = DownloadRangeParser::parse('bytes= 0-9, 20-29 ', self::FILESIZE);
 
         self::assertFalse($result->isInvalid());
         self::assertFalse($result->isUnsatisfiable());
 
         $range = $result->getRange();
+        $rangeItems = $range->getItems();
 
         self::assertNotNull($range);
-        self::assertCount(2, $range->getItems());
-
-        self::assertSame(
-            0,
-            $range->getItems()[0]->getStart()
-        );
-
-        self::assertSame(
-            20,
-            $range->getItems()[1]->getStart()
-        );
+        self::assertCount(2, $rangeItems);
+        self::assertSame([0, 20], [$rangeItems[0]->getStart(), $rangeItems[1]->getStart()]);
     }
 
     public function testItReturnsUnsatisfiableForSuffixRangeOnEmptyFile(): void
     {
-        $result = DownloadRangeParser::parse(
-            'bytes=-10',
-            0
-        );
+        $result = DownloadRangeParser::parse('bytes=-10', 0);
 
         self::assertFalse($result->isInvalid());
         self::assertTrue($result->isUnsatisfiable());
@@ -416,10 +320,7 @@ final class DownloadRangeParserTest extends TestCase
 
     public function testItReturnsUnsatisfiableForExplicitRangeOnEmptyFile(): void
     {
-        $result = DownloadRangeParser::parse(
-            'bytes=0-9',
-            0
-        );
+        $result = DownloadRangeParser::parse('bytes=0-9', 0);
 
         self::assertFalse($result->isInvalid());
         self::assertTrue($result->isUnsatisfiable());

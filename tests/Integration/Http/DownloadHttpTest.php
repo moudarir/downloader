@@ -1,13 +1,16 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Moudarir\Downloader\Tests\Integration\Http;
 
+use Moudarir\Downloader\Enums\StatusCode;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
 final class DownloadHttpTest extends TestCase
 {
+
     private const string URL = 'http://localhost:8080/download.php';
 
     /**
@@ -17,11 +20,8 @@ final class DownloadHttpTest extends TestCase
      *     body: string
      * }
      */
-    private function request(
-        string $method = 'GET',
-        array $headers = [],
-        bool $downloadBody = false,
-    ): array {
+    private function request(string $method = 'GET', array $headers = [], bool $downloadBody = false): array
+    {
         $curl = curl_init(self::URL);
 
         if ($curl === false) {
@@ -73,15 +73,10 @@ final class DownloadHttpTest extends TestCase
             $message = curl_error($curl);
             curl_close($curl);
 
-            throw new RuntimeException(
-                'HTTP request failed: ' . $message
-            );
+            throw new RuntimeException('HTTP request failed: ' . $message);
         }
 
-        $status = curl_getinfo(
-            $curl,
-            CURLINFO_RESPONSE_CODE
-        );
+        $status = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
 
         curl_close($curl);
 
@@ -109,175 +104,76 @@ final class DownloadHttpTest extends TestCase
 
     public function testGetReturnsOk(): void
     {
-        $response = $this->request(
-            'GET',
-            [],
-            false
-        );
+        $response = $this->request();
 
-        self::assertSame(
-            200,
-            $response['status']
-        );
+        self::assertSame(StatusCode::OK->value, $response['status']);
     }
 
     public function testGetReturnsExpectedHeaders(): void
     {
-        $response = $this->request(
-            'GET',
-            [],
-            false
-        );
+        $response = $this->request();
 
-        self::assertSame(
-            200,
-            $response['status']
-        );
-
+        self::assertSame(StatusCode::OK->value, $response['status']);
         self::assertSame(
             'attachment; filename="video.mov"; filename*=UTF-8\'\'video.mov',
             $response['headers']['content-disposition'] ?? null
         );
-
-        self::assertSame(
-            'video/quicktime',
-            $response['headers']['content-type'] ?? null
-        );
-
-        self::assertSame(
-            'private, must-revalidate',
-            $response['headers']['cache-control'] ?? null
-        );
-
-        self::assertArrayHasKey(
-            'etag',
-            $response['headers']
-        );
-
-        self::assertArrayHasKey(
-            'last-modified',
-            $response['headers']
-        );
-
-        self::assertArrayHasKey(
-            'content-length',
-            $response['headers']
-        );
+        self::assertSame('video/quicktime', $response['headers']['content-type'] ?? null);
+        self::assertSame('private, must-revalidate', $response['headers']['cache-control'] ?? null);
+        self::assertArrayHasKey('etag', $response['headers']);
+        self::assertArrayHasKey('last-modified', $response['headers']);
+        self::assertArrayHasKey('content-length', $response['headers']);
     }
 
     public function testHeadReturnsOk(): void
     {
         $response = $this->request('HEAD');
 
-        self::assertSame(
-            200,
-            $response['status']
-        );
+        self::assertSame(StatusCode::OK->value, $response['status']);
     }
 
     public function testHeadReturnsExpectedHeaders(): void
     {
         $response = $this->request('HEAD');
 
-        self::assertSame(
-            200,
-            $response['status']
-        );
-
+        self::assertSame(StatusCode::OK->value, $response['status']);
         self::assertSame(
             'attachment; filename="video.mov"; filename*=UTF-8\'\'video.mov',
             $response['headers']['content-disposition'] ?? null
         );
-
-        self::assertSame(
-            'video/quicktime',
-            $response['headers']['content-type'] ?? null
-        );
-
-        self::assertSame(
-            'private, must-revalidate',
-            $response['headers']['cache-control'] ?? null
-        );
-
-        self::assertArrayHasKey(
-            'etag',
-            $response['headers']
-        );
-
-        self::assertArrayHasKey(
-            'last-modified',
-            $response['headers']
-        );
-
-        self::assertArrayHasKey(
-            'content-length',
-            $response['headers']
-        );
-
-        self::assertSame(
-            '',
-            $response['body']
-        );
+        self::assertSame('video/quicktime', $response['headers']['content-type'] ?? null);
+        self::assertSame('private, must-revalidate', $response['headers']['cache-control'] ?? null);
+        self::assertArrayHasKey('etag', $response['headers']);
+        self::assertArrayHasKey('last-modified', $response['headers']);
+        self::assertArrayHasKey('content-length', $response['headers']);
+        self::assertSame('', $response['body']);
     }
 
     public function testPostIsRejectedByDownloadRequestButEndpointCurrentlyReturnsOk(): void
     {
         $response = $this->request('POST');
 
-        self::assertSame(
-            200,
-            $response['status']
-        );
-
-        self::assertSame(
-            '',
-            $response['body']
-        );
-
-        self::assertSame(
-            'text/html; charset=UTF-8',
-            $response['headers']['content-type'] ?? null
-        );
+        self::assertSame(StatusCode::OK->value, $response['status']);
+        self::assertSame('', $response['body']);
+        self::assertSame('text/html; charset=UTF-8', $response['headers']['content-type'] ?? null);
     }
 
     public function testPutIsRejectedByDownloadRequestButEndpointCurrentlyReturnsOk(): void
     {
         $response = $this->request('PUT');
 
-        self::assertSame(
-            200,
-            $response['status']
-        );
-
-        self::assertSame(
-            '',
-            $response['body']
-        );
-
-        self::assertSame(
-            'text/html; charset=UTF-8',
-            $response['headers']['content-type'] ?? null
-        );
+        self::assertSame(StatusCode::OK->value, $response['status']);
+        self::assertSame('', $response['body']);
+        self::assertSame('text/html; charset=UTF-8', $response['headers']['content-type'] ?? null);
     }
 
     public function testDeleteIsRejectedByDownloadRequestButEndpointCurrentlyReturnsOk(): void
     {
         $response = $this->request('DELETE');
 
-        self::assertSame(
-            200,
-            $response['status']
-        );
-
-        self::assertSame(
-            '',
-            $response['body']
-        );
-
-        self::assertSame(
-            'text/html; charset=UTF-8',
-            $response['headers']['content-type'] ?? null
-        );
+        self::assertSame(StatusCode::OK->value, $response['status']);
+        self::assertSame('', $response['body']);
+        self::assertSame('text/html; charset=UTF-8', $response['headers']['content-type'] ?? null);
     }
 
     public function testIfNoneMatchMatchingEtagReturnsNotModified(): void
@@ -288,89 +184,43 @@ final class DownloadHttpTest extends TestCase
 
         self::assertNotNull($etag);
 
-        $response = $this->request(
-            'GET',
-            [
-                'If-None-Match' => $etag,
-            ]
-        );
+        $response = $this->request('GET', ['If-None-Match' => $etag]);
 
-        self::assertSame(
-            304,
-            $response['status']
-        );
-
-        self::assertSame(
-            '',
-            $response['body']
-        );
+        self::assertSame(StatusCode::NOT_MODIFIED->value, $response['status']);
+        self::assertSame('', $response['body']);
     }
 
     public function testIfNoneMatchWithDifferentEtagReturnsOk(): void
     {
-        $response = $this->request(
-            'GET',
-            [
-                'If-None-Match' => '"etag-inexistant"',
-            ]
-        );
+        $response = $this->request('GET', ['If-None-Match' => '"etag-inexistant"']);
 
-        self::assertSame(
-            200,
-            $response['status']
-        );
+        self::assertSame(StatusCode::OK->value, $response['status']);
     }
 
     public function testIfNoneMatchWildcardReturnsNotModified(): void
     {
-        $response = $this->request(
-            'GET',
-            [
-                'If-None-Match' => '*',
-            ]
-        );
+        $response = $this->request('GET', ['If-None-Match' => '*']);
 
-        self::assertSame(
-            304,
-            $response['status']
-        );
-
-        self::assertSame(
-            '',
-            $response['body']
-        );
+        self::assertSame(StatusCode::NOT_MODIFIED->value, $response['status']);
+        self::assertSame('', $response['body']);
     }
 
     public function testIfModifiedSinceMatchingLastModifiedReturnsNotModified(): void
     {
         $head = $this->request('HEAD');
-
         $lastModified = $head['headers']['last-modified'] ?? null;
 
         self::assertNotNull($lastModified);
 
-        $response = $this->request(
-            'GET',
-            [
-                'If-Modified-Since' => $lastModified,
-            ]
-        );
+        $response = $this->request('GET', ['If-Modified-Since' => $lastModified]);
 
-        self::assertSame(
-            304,
-            $response['status']
-        );
-
-        self::assertSame(
-            '',
-            $response['body']
-        );
+        self::assertSame(StatusCode::NOT_MODIFIED->value, $response['status']);
+        self::assertSame('', $response['body']);
     }
 
     public function testIfModifiedSinceOlderThanLastModifiedReturnsOk(): void
     {
         $head = $this->request('HEAD');
-
         $lastModified = $head['headers']['last-modified'] ?? null;
 
         self::assertNotNull($lastModified);
@@ -379,28 +229,15 @@ final class DownloadHttpTest extends TestCase
 
         self::assertNotFalse($timestamp);
 
-        $olderDate = gmdate(
-                'D, d M Y H:i:s',
-                $timestamp - 86400
-            ) . ' GMT';
+        $olderDate = gmdate('D, d M Y H:i:s', $timestamp - 86400) . ' GMT';
+        $response = $this->request('GET', ['If-Modified-Since' => $olderDate]);
 
-        $response = $this->request(
-            'GET',
-            [
-                'If-Modified-Since' => $olderDate,
-            ]
-        );
-
-        self::assertSame(
-            200,
-            $response['status']
-        );
+        self::assertSame(StatusCode::OK->value, $response['status']);
     }
 
     public function testIfModifiedSinceNewerThanLastModifiedReturnsNotModified(): void
     {
         $head = $this->request('HEAD');
-
         $lastModified = $head['headers']['last-modified'] ?? null;
 
         self::assertNotNull($lastModified);
@@ -409,33 +246,16 @@ final class DownloadHttpTest extends TestCase
 
         self::assertNotFalse($timestamp);
 
-        $newerDate = gmdate(
-                'D, d M Y H:i:s',
-                $timestamp + 86400
-            ) . ' GMT';
+        $newerDate = gmdate('D, d M Y H:i:s', $timestamp + 86400) . ' GMT';
+        $response = $this->request('GET', ['If-Modified-Since' => $newerDate]);
 
-        $response = $this->request(
-            'GET',
-            [
-                'If-Modified-Since' => $newerDate,
-            ]
-        );
-
-        self::assertSame(
-            304,
-            $response['status']
-        );
-
-        self::assertSame(
-            '',
-            $response['body']
-        );
+        self::assertSame(StatusCode::NOT_MODIFIED->value, $response['status']);
+        self::assertSame('', $response['body']);
     }
 
     public function testIfNoneMatchTakesPrecedenceOverIfModifiedSince(): void
     {
         $head = $this->request('HEAD');
-
         $etag = $head['headers']['etag'] ?? null;
 
         self::assertNotNull($etag);
@@ -448,16 +268,12 @@ final class DownloadHttpTest extends TestCase
             ]
         );
 
-        self::assertSame(
-            304,
-            $response['status']
-        );
+        self::assertSame(StatusCode::NOT_MODIFIED->value, $response['status']);
     }
 
     public function testIfNoneMatchDifferentEtagIgnoresIfModifiedSince(): void
     {
         $head = $this->request('HEAD');
-
         $lastModified = $head['headers']['last-modified'] ?? null;
 
         self::assertNotNull($lastModified);
@@ -470,93 +286,51 @@ final class DownloadHttpTest extends TestCase
             ]
         );
 
-        self::assertSame(
-            200,
-            $response['status']
-        );
+        self::assertSame(StatusCode::OK->value, $response['status']);
     }
 
     public function testIfMatchMatchingEtagReturnsOk(): void
     {
         $head = $this->request('HEAD');
-
         $etag = $head['headers']['etag'] ?? null;
 
         self::assertNotNull($etag);
 
-        $response = $this->request(
-            'GET',
-            [
-                'If-Match' => $etag,
-            ]
-        );
+        $response = $this->request('GET', ['If-Match' => $etag]);
 
-        self::assertSame(
-            200,
-            $response['status']
-        );
+        self::assertSame(StatusCode::OK->value, $response['status']);
     }
 
     public function testIfMatchDifferentEtagReturnsPreconditionFailed(): void
     {
-        $response = $this->request(
-            'GET',
-            [
-                'If-Match' => '"etag-inexistant"',
-            ]
-        );
+        $response = $this->request('GET', ['If-Match' => '"etag-inexistant"']);
 
-        self::assertSame(
-            412,
-            $response['status']
-        );
-
-        self::assertSame(
-            '0',
-            $response['headers']['content-length'] ?? null
-        );
+        self::assertSame(StatusCode::PRECONDITION_FAILED->value, $response['status']);
+        self::assertSame('0', $response['headers']['content-length'] ?? null);
     }
 
     public function testIfMatchWildcardReturnsOk(): void
     {
-        $response = $this->request(
-            'GET',
-            [
-                'If-Match' => '*',
-            ]
-        );
+        $response = $this->request('GET', ['If-Match' => '*']);
 
-        self::assertSame(
-            200,
-            $response['status']
-        );
+        self::assertSame(StatusCode::OK->value, $response['status']);
     }
 
     public function testIfUnmodifiedSinceMatchingLastModifiedReturnsOk(): void
     {
         $head = $this->request('HEAD');
-
         $lastModified = $head['headers']['last-modified'] ?? null;
 
         self::assertNotNull($lastModified);
 
-        $response = $this->request(
-            'GET',
-            [
-                'If-Unmodified-Since' => $lastModified,
-            ]
-        );
+        $response = $this->request('GET', ['If-Unmodified-Since' => $lastModified]);
 
-        self::assertSame(
-            200,
-            $response['status']
-        );
+        self::assertSame(StatusCode::OK->value, $response['status']);
     }
 
     public function testIfUnmodifiedSinceOlderThanLastModifiedReturnsPreconditionFailed(): void
     {
         $head = $this->request('HEAD');
-
         $lastModified = $head['headers']['last-modified'] ?? null;
 
         self::assertNotNull($lastModified);
@@ -565,36 +339,16 @@ final class DownloadHttpTest extends TestCase
 
         self::assertNotFalse($timestamp);
 
-        $olderDate = gmdate(
-                'D, d M Y H:i:s',
-                $timestamp - 86400
-            ) . ' GMT';
+        $olderDate = gmdate('D, d M Y H:i:s', $timestamp - 86400) . ' GMT';
+        $response = $this->request('GET', ['If-Unmodified-Since' => $olderDate]);
 
-        $response = $this->request(
-            'GET',
-            [
-                'If-Unmodified-Since' => $olderDate,
-            ]
-        );
-
-        self::assertSame(
-            412,
-            $response['status']
-        );
+        self::assertSame(StatusCode::PRECONDITION_FAILED->value, $response['status']);
     }
 
     public function testIfUnmodifiedSinceNewerThanLastModifiedReturnsOk(): void
     {
-        $response = $this->request(
-            'GET',
-            [
-                'If-Unmodified-Since' => 'Thu, 01 Jan 2027 00:00:00 GMT',
-            ]
-        );
+        $response = $this->request('GET', ['If-Unmodified-Since' => 'Thu, 01 Jan 2027 00:00:00 GMT']);
 
-        self::assertSame(
-            200,
-            $response['status']
-        );
+        self::assertSame(StatusCode::OK->value, $response['status']);
     }
 }

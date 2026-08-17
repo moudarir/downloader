@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Moudarir\Downloader\Range;
 
 use Moudarir\Downloader\DownloadConfig;
-use Moudarir\Downloader\Enums\DownloadRangeItemStatus;
+use Moudarir\Downloader\Enums\RangeItemStatus;
 use Moudarir\Downloader\Exceptions\DownloadException;
 use Random\RandomException;
 
@@ -32,11 +32,11 @@ final class DownloadRangeParser
         foreach ($ranges as $range) {
             $result = self::parseItem(trim($range), $filesize);
 
-            if ($result === DownloadRangeItemStatus::INVALID) {
+            if ($result === RangeItemStatus::INVALID) {
                 return DownloadRangeResult::invalid();
             }
 
-            if ($result === DownloadRangeItemStatus::UNSATISFIABLE) {
+            if ($result === RangeItemStatus::UNSATISFIABLE) {
                 continue;
             }
 
@@ -55,10 +55,10 @@ final class DownloadRangeParser
         );
     }
 
-    private static function parseItem(string $range, int $filesize): DownloadRangeItem|DownloadRangeItemStatus
+    private static function parseItem(string $range, int $filesize): DownloadRangeItem|RangeItemStatus
     {
         if (!preg_match('/^(\d*)-(\d*)$/', $range, $matches)) {
-            return DownloadRangeItemStatus::INVALID;
+            return RangeItemStatus::INVALID;
         }
 
         [, $start, $end] = $matches;
@@ -67,7 +67,7 @@ final class DownloadRangeParser
          * "-"
          */
         if ($start === '' && $end === '') {
-            return DownloadRangeItemStatus::INVALID;
+            return RangeItemStatus::INVALID;
         }
 
         /*
@@ -77,11 +77,11 @@ final class DownloadRangeParser
             $suffix = (int)$end;
 
             if ($suffix <= 0) {
-                return DownloadRangeItemStatus::INVALID;
+                return RangeItemStatus::INVALID;
             }
 
             if ($filesize === 0) {
-                return DownloadRangeItemStatus::UNSATISFIABLE;
+                return RangeItemStatus::UNSATISFIABLE;
             }
 
             $suffix = min($suffix, $filesize);
@@ -95,7 +95,7 @@ final class DownloadRangeParser
          * start >= filesize
          */
         if ($start >= $filesize) {
-            return DownloadRangeItemStatus::UNSATISFIABLE;
+            return RangeItemStatus::UNSATISFIABLE;
         }
 
         /*
@@ -111,7 +111,7 @@ final class DownloadRangeParser
          * "600-500"
          */
         if ($end < $start) {
-            return DownloadRangeItemStatus::INVALID;
+            return RangeItemStatus::INVALID;
         }
 
         return new DownloadRangeItem($start, $end);

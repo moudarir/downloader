@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Moudarir\Downloader\Helpers;
 
 use Moudarir\Downloader\Enums\ResponseAction;
+use Moudarir\Downloader\Enums\StatusCode;
 use Moudarir\Downloader\ETag\DownloadETag;
 use Moudarir\Downloader\Range\DownloadRange;
 use Moudarir\Downloader\Range\DownloadRangeItem;
@@ -17,7 +18,7 @@ final readonly class MetadataHelper
         private DownloadResource $resource,
         private ResponseAction   $responseAction,
         private DownloadETag     $etag,
-        private int              $statusCode,
+        private StatusCode       $statusCode,
         private int              $contentLength,
         private ?string          $contentType,
         private ?DownloadRange   $range = null,
@@ -29,7 +30,7 @@ final readonly class MetadataHelper
         DownloadResource $resource,
         ResponseAction   $responseAction,
         DownloadETag     $etag,
-        int              $statusCode,
+        StatusCode       $statusCode,
         int              $contentLength,
         ?string          $contentType = null,
         ?DownloadRange   $range = null
@@ -71,7 +72,7 @@ final readonly class MetadataHelper
         return $this->resource->getLastModified();
     }
 
-    public function statusCode(): int
+    public function statusCode(): StatusCode
     {
         return $this->statusCode;
     }

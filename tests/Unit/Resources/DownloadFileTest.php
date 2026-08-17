@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Moudarir\Downloader\Tests\Unit\Resources;
@@ -12,21 +13,17 @@ use RuntimeException;
 
 final class DownloadFileTest extends TestCase
 {
+
     private string $filepath;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $filepath = tempnam(
-            sys_get_temp_dir(),
-            'downloader-test-'
-        );
+        $filepath = tempnam(sys_get_temp_dir(), 'downloader-test-');
 
         if ($filepath === false) {
-            throw new RuntimeException(
-                'Unable to create temporary file.'
-            );
+            throw new RuntimeException("Unable to create temporary file.");
         }
 
         $this->filepath = $filepath;
@@ -45,176 +42,82 @@ final class DownloadFileTest extends TestCase
     {
         $content = 'Hello, World!';
 
-        file_put_contents(
-            $this->filepath,
-            $content
-        );
+        file_put_contents($this->filepath, $content);
 
-        $resource = DownloadFile::create(
-            $this->filepath,
-            'hello.txt',
-            'text/plain'
-        );
+        $resource = DownloadFile::create($this->filepath, 'hello.txt', 'text/plain');
 
-        self::assertSame(
-            $this->filepath,
-            $resource->getFilepath()
-        );
-
-        self::assertSame(
-            'hello.txt',
-            $resource->getFilename()
-        );
-
-        self::assertSame(
-            strlen($content),
-            $resource->getFilesize()
-        );
-
-        self::assertSame(
-            'text/plain',
-            $resource->getMime()
-        );
-
-        self::assertNotNull(
-            $resource->getLastModified()
-        );
+        self::assertSame($this->filepath, $resource->getFilepath());
+        self::assertSame('hello.txt', $resource->getFilename());
+        self::assertSame(strlen($content), $resource->getFilesize());
+        self::assertSame('text/plain', $resource->getMime());
+        self::assertNotNull($resource->getLastModified());
     }
 
     public function testItUsesBasenameAsFilenameWhenFilenameIsNotProvided(): void
     {
-        file_put_contents(
-            $this->filepath,
-            'Hello'
-        );
+        file_put_contents($this->filepath, 'Hello');
 
-        $resource = DownloadFile::create(
-            $this->filepath,
-            null,
-            'text/plain'
-        );
+        $resource = DownloadFile::create($this->filepath, null, 'text/plain');
 
-        self::assertSame(
-            basename($this->filepath),
-            $resource->getFilename()
-        );
+        self::assertSame(basename($this->filepath), $resource->getFilename());
     }
 
     public function testItUsesBasenameAsFilenameWhenFilenameIsEmpty(): void
     {
-        file_put_contents(
-            $this->filepath,
-            'Hello'
-        );
+        file_put_contents($this->filepath, 'Hello');
 
-        $resource = DownloadFile::create(
-            $this->filepath,
-            '   ',
-            'text/plain'
-        );
+        $resource = DownloadFile::create($this->filepath, '   ', 'text/plain');
 
-        self::assertSame(
-            basename($this->filepath),
-            $resource->getFilename()
-        );
+        self::assertSame(basename($this->filepath), $resource->getFilename());
     }
 
     public function testItUsesExplicitMimeType(): void
     {
-        file_put_contents(
-            $this->filepath,
-            'Hello'
-        );
+        file_put_contents($this->filepath, 'Hello');
 
-        $resource = DownloadFile::create(
-            $this->filepath,
-            'hello.txt',
-            'text/custom'
-        );
+        $resource = DownloadFile::create($this->filepath, 'hello.txt', 'text/custom');
 
-        self::assertSame(
-            'text/custom',
-            $resource->getMime()
-        );
+        self::assertSame('text/custom', $resource->getMime());
     }
 
     public function testItUsesDefaultMimeTypeWhenMimeIsEmpty(): void
     {
-        file_put_contents(
-            $this->filepath,
-            'Hello'
-        );
+        file_put_contents($this->filepath, 'Hello');
 
-        $resource = DownloadFile::create(
-            $this->filepath,
-            'hello.txt'
-        );
+        $resource = DownloadFile::create($this->filepath, 'hello.txt');
 
-        self::assertSame(
-            DownloadConfig::DEFAULT_MIME,
-            $resource->getMime()
-        );
+        self::assertSame(DownloadConfig::DEFAULT_MIME, $resource->getMime());
     }
 
     public function testItTrimsExplicitMimeType(): void
     {
-        file_put_contents(
-            $this->filepath,
-            'Hello'
-        );
+        file_put_contents($this->filepath, 'Hello');
 
-        $resource = DownloadFile::create(
-            $this->filepath,
-            'hello.txt',
-            '  text/plain  '
-        );
+        $resource = DownloadFile::create($this->filepath, 'hello.txt', '  text/plain  ');
 
-        self::assertSame(
-            'text/plain',
-            $resource->getMime()
-        );
+        self::assertSame('text/plain', $resource->getMime());
     }
 
     public function testItDetectsMimeTypeAutomatically(): void
     {
-        file_put_contents(
-            $this->filepath,
-            "<?php echo 'Hello';"
-        );
+        file_put_contents($this->filepath, "<?php echo 'Hello';");
 
-        $resource = DownloadFile::create(
-            $this->filepath,
-            'test.php',
-            true
-        );
+        $resource = DownloadFile::create($this->filepath, 'test.php', true);
 
-        self::assertSame(
-            'application/x-httpd-php',
-            $resource->getMime()
-        );
+        self::assertSame('application/x-httpd-php', $resource->getMime());
     }
 
     public function testItReturnsLastModifiedTimestamp(): void
     {
-        file_put_contents(
-            $this->filepath,
-            'Hello'
-        );
+        file_put_contents($this->filepath, 'Hello');
 
         $expected = filemtime($this->filepath);
 
         self::assertNotFalse($expected);
 
-        $resource = DownloadFile::create(
-            $this->filepath,
-            'hello.txt',
-            'text/plain'
-        );
+        $resource = DownloadFile::create($this->filepath, 'hello.txt', 'text/plain');
 
-        self::assertSame(
-            $expected,
-            $resource->getLastModified()
-        );
+        self::assertSame($expected, $resource->getLastModified());
     }
 
     public function testItThrowsWhenFileDoesNotExist(): void
@@ -222,124 +125,66 @@ final class DownloadFileTest extends TestCase
         $missing = $this->filepath . '-missing';
 
         self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains(
-            'The specified file path was not found.'
-        );
+        self::expectExceptionMessageIsOrContains("The specified file path was not found.");
 
-        DownloadFile::create(
-            $missing,
-            'missing.txt',
-            'text/plain'
-        );
+        DownloadFile::create($missing, 'missing.txt', 'text/plain');
     }
 
     public function testItThrowsWhenFilepathIsEmpty(): void
     {
         self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains(
-            'The specified file path was not found.'
-        );
+        self::expectExceptionMessageIsOrContains("The specified file path was not found.");
 
-        DownloadFile::create(
-            '',
-            'test.txt',
-            'text/plain'
-        );
+        DownloadFile::create('', 'test.txt', 'text/plain');
     }
 
     public function testItReturnsMd5Hash(): void
     {
         $content = 'Hello, World!';
 
-        file_put_contents(
-            $this->filepath,
-            $content
-        );
+        file_put_contents($this->filepath, $content);
 
-        $resource = DownloadFile::create(
-            $this->filepath,
-            'hello.txt',
-            'text/plain'
-        );
+        $resource = DownloadFile::create($this->filepath, 'hello.txt', 'text/plain');
 
-        self::assertSame(
-            md5($content),
-            $resource->getHash('md5')
-        );
+        self::assertSame(md5($content), $resource->getHash('md5'));
     }
 
     public function testItReturnsSha256Hash(): void
     {
         $content = 'Hello, World!';
 
-        file_put_contents(
-            $this->filepath,
-            $content
-        );
+        file_put_contents($this->filepath, $content);
 
-        $resource = DownloadFile::create(
-            $this->filepath,
-            'hello.txt',
-            'text/plain'
-        );
+        $resource = DownloadFile::create($this->filepath, 'hello.txt', 'text/plain');
 
-        self::assertSame(
-            hash('sha256', $content),
-            $resource->getHash('sha256')
-        );
+        self::assertSame(hash('sha256', $content), $resource->getHash('sha256'));
     }
 
     public function testItReturnsSha512Hash(): void
     {
         $content = 'Hello, World!';
 
-        file_put_contents(
-            $this->filepath,
-            $content
-        );
+        file_put_contents($this->filepath, $content);
 
-        $resource = DownloadFile::create(
-            $this->filepath,
-            'hello.txt',
-            'text/plain'
-        );
+        $resource = DownloadFile::create($this->filepath, 'hello.txt', 'text/plain');
 
-        self::assertSame(
-            hash('sha512', $content),
-            $resource->getHash('sha512')
-        );
+        self::assertSame(hash('sha512', $content), $resource->getHash('sha512'));
     }
 
     public function testItReturnsNullForInvalidHashAlgorithm(): void
     {
-        file_put_contents(
-            $this->filepath,
-            'Hello'
-        );
+        file_put_contents($this->filepath, 'Hello');
 
-        $resource = DownloadFile::create(
-            $this->filepath,
-            'hello.txt',
-            'text/plain'
-        );
+        $resource = DownloadFile::create($this->filepath, 'hello.txt', 'text/plain');
 
-        self::assertNull(
-            $resource->getHash('invalid-algorithm')
-        );
+        self::assertNull($resource->getHash('invalid-algorithm'));
     }
 
     public function testItSupportsExpectedEtagStrategies(): void
     {
-        file_put_contents(
-            $this->filepath,
-            'Hello'
-        );
+        file_put_contents($this->filepath, 'Hello');
 
-        $resource = DownloadFile::create(
-            $this->filepath,
-            'hello.txt',
-            'text/plain'
-        );
+        $resource = DownloadFile::create($this->filepath, 'hello.txt', 'text/plain');
 
         self::assertSame(
             [
@@ -357,16 +202,9 @@ final class DownloadFileTest extends TestCase
     {
         $content = 'Hello, World!';
 
-        file_put_contents(
-            $this->filepath,
-            $content
-        );
+        file_put_contents($this->filepath, $content);
 
-        $resource = DownloadFile::create(
-            $this->filepath,
-            'hello.txt',
-            'text/plain'
-        );
+        $resource = DownloadFile::create($this->filepath, 'hello.txt', 'text/plain');
 
         ob_start();
 
@@ -377,26 +215,16 @@ final class DownloadFileTest extends TestCase
             ob_end_clean();
         }
 
-        self::assertSame(
-            $content,
-            $output
-        );
+        self::assertSame($content, $output);
     }
 
     public function testItOutputsRequestedPartOfFile(): void
     {
         $content = 'Hello, World!';
 
-        file_put_contents(
-            $this->filepath,
-            $content
-        );
+        file_put_contents($this->filepath, $content);
 
-        $resource = DownloadFile::create(
-            $this->filepath,
-            'hello.txt',
-            'text/plain'
-        );
+        $resource = DownloadFile::create($this->filepath, 'hello.txt', 'text/plain');
 
         ob_start();
 
@@ -407,26 +235,16 @@ final class DownloadFileTest extends TestCase
             ob_end_clean();
         }
 
-        self::assertSame(
-            'World',
-            $output
-        );
+        self::assertSame('World', $output);
     }
 
     public function testItStartsAtZeroByDefault(): void
     {
         $content = 'Hello, World!';
 
-        file_put_contents(
-            $this->filepath,
-            $content
-        );
+        file_put_contents($this->filepath, $content);
 
-        $resource = DownloadFile::create(
-            $this->filepath,
-            'hello.txt',
-            'text/plain'
-        );
+        $resource = DownloadFile::create($this->filepath, 'hello.txt', 'text/plain');
 
         ob_start();
 
@@ -437,24 +255,14 @@ final class DownloadFileTest extends TestCase
             ob_end_clean();
         }
 
-        self::assertSame(
-            'Hello',
-            $output
-        );
+        self::assertSame('Hello', $output);
     }
 
     public function testItOutputsNothingWhenLengthIsZero(): void
     {
-        file_put_contents(
-            $this->filepath,
-            'Hello, World!'
-        );
+        file_put_contents($this->filepath, 'Hello, World!');
 
-        $resource = DownloadFile::create(
-            $this->filepath,
-            'hello.txt',
-            'text/plain'
-        );
+        $resource = DownloadFile::create($this->filepath, 'hello.txt', 'text/plain');
 
         ob_start();
 
@@ -465,24 +273,14 @@ final class DownloadFileTest extends TestCase
             ob_end_clean();
         }
 
-        self::assertSame(
-            '',
-            $output
-        );
+        self::assertSame('', $output);
     }
 
     public function testItOutputsNothingWhenLengthIsNegative(): void
     {
-        file_put_contents(
-            $this->filepath,
-            'Hello, World!'
-        );
+        file_put_contents($this->filepath, 'Hello, World!');
 
-        $resource = DownloadFile::create(
-            $this->filepath,
-            'hello.txt',
-            'text/plain'
-        );
+        $resource = DownloadFile::create($this->filepath, 'hello.txt', 'text/plain');
 
         ob_start();
 
@@ -493,9 +291,6 @@ final class DownloadFileTest extends TestCase
             ob_end_clean();
         }
 
-        self::assertSame(
-            '',
-            $output
-        );
+        self::assertSame('', $output);
     }
 }

@@ -7,6 +7,7 @@ namespace Moudarir\Downloader\Tests\Unit;
 use Moudarir\Downloader\Download;
 use Moudarir\Downloader\Enums\ETagStrategy;
 use Moudarir\Downloader\Enums\ResponseAction;
+use Moudarir\Downloader\Enums\StatusCode;
 use Moudarir\Downloader\Exceptions\DownloadException;
 use PHPUnit\Framework\TestCase;
 
@@ -27,10 +28,7 @@ final class DownloadTest extends TestCase
         $this->server = $_SERVER;
         $_SERVER = [];
 
-        $filepath = tempnam(
-            sys_get_temp_dir(),
-            'downloader-test-'
-        );
+        $filepath = tempnam(sys_get_temp_dir(), 'downloader-test-');
 
         if ($filepath === false) {
             self::fail('Unable to create temporary test file.');
@@ -38,10 +36,7 @@ final class DownloadTest extends TestCase
 
         $this->filepath = $filepath;
 
-        file_put_contents(
-            $this->filepath,
-            'Hello, World!'
-        );
+        file_put_contents($this->filepath, 'Hello, World!');
     }
 
     protected function tearDown(): void
@@ -57,38 +52,15 @@ final class DownloadTest extends TestCase
 
     public function testFromDataCreatesDefaultResponse(): void
     {
-        $response = Download::fromData(
-            'Hello, World!',
-            'hello.txt',
-            'text/plain'
-        );
+        $response = Download::fromData('Hello, World!', 'hello.txt', 'text/plain');
 
         $metadata = $response->metadata();
 
-        self::assertSame(
-            ResponseAction::DEFAULT,
-            $metadata->responseAction()
-        );
-
-        self::assertSame(
-            200,
-            $metadata->statusCode()
-        );
-
-        self::assertSame(
-            13,
-            $metadata->contentLength()
-        );
-
-        self::assertSame(
-            'text/plain',
-            $metadata->contentType()
-        );
-
-        self::assertSame(
-            'hello.txt',
-            $metadata->filename()
-        );
+        self::assertSame(ResponseAction::DEFAULT, $metadata->responseAction());
+        self::assertSame(StatusCode::OK, $metadata->statusCode());
+        self::assertSame(13, $metadata->contentLength());
+        self::assertSame('text/plain', $metadata->contentType());
+        self::assertSame('hello.txt', $metadata->filename());
     }
 
     public function testFromDataCreatesPartialResponse(): void
@@ -104,69 +76,25 @@ final class DownloadTest extends TestCase
 
         $metadata = $response->metadata();
 
-        self::assertSame(
-            ResponseAction::PARTIAL,
-            $metadata->responseAction()
-        );
-
-        self::assertSame(
-            206,
-            $metadata->statusCode()
-        );
-
-        self::assertSame(
-            5,
-            $metadata->contentLength()
-        );
-
-        self::assertTrue(
-            $metadata->hasRange()
-        );
-
-        self::assertTrue(
-            $metadata->rangeIsPartial()
-        );
+        self::assertSame(ResponseAction::PARTIAL, $metadata->responseAction());
+        self::assertSame(StatusCode::PARTIAL_CONTENT, $metadata->statusCode());
+        self::assertSame(5, $metadata->contentLength());
+        self::assertTrue($metadata->hasRange());
+        self::assertTrue($metadata->rangeIsPartial());
     }
 
     public function testFromFileCreatesDefaultResponse(): void
     {
-        $response = Download::fromFile(
-            $this->filepath,
-            'hello.txt',
-            'text/plain'
-        );
+        $response = Download::fromFile($this->filepath, 'hello.txt', 'text/plain');
 
         $metadata = $response->metadata();
 
-        self::assertSame(
-            ResponseAction::DEFAULT,
-            $metadata->responseAction()
-        );
-
-        self::assertSame(
-            200,
-            $metadata->statusCode()
-        );
-
-        self::assertSame(
-            filesize($this->filepath),
-            $metadata->filesize()
-        );
-
-        self::assertSame(
-            'hello.txt',
-            $metadata->filename()
-        );
-
-        self::assertSame(
-            'text/plain',
-            $metadata->mimeType()
-        );
-
-        self::assertSame(
-            $this->filepath,
-            $metadata->filepath()
-        );
+        self::assertSame(ResponseAction::DEFAULT, $metadata->responseAction());
+        self::assertSame(StatusCode::OK, $metadata->statusCode());
+        self::assertSame(filesize($this->filepath), $metadata->filesize());
+        self::assertSame('hello.txt', $metadata->filename());
+        self::assertSame('text/plain', $metadata->mimeType());
+        self::assertSame($this->filepath, $metadata->filepath());
     }
 
     public function testFromFileCreatesPartialResponse(): void
@@ -182,51 +110,24 @@ final class DownloadTest extends TestCase
 
         $metadata = $response->metadata();
 
-        self::assertSame(
-            ResponseAction::PARTIAL,
-            $metadata->responseAction()
-        );
-
-        self::assertSame(
-            206,
-            $metadata->statusCode()
-        );
-
-        self::assertSame(
-            5,
-            $metadata->contentLength()
-        );
-
-        self::assertTrue(
-            $metadata->rangeIsPartial()
-        );
+        self::assertSame(ResponseAction::PARTIAL, $metadata->responseAction());
+        self::assertSame(StatusCode::PARTIAL_CONTENT, $metadata->statusCode());
+        self::assertSame(5, $metadata->contentLength());
+        self::assertTrue($metadata->rangeIsPartial());
     }
 
     public function testFromFileSupportsAutomaticMimeDetection(): void
     {
-        $phpFile = tempnam(
-            sys_get_temp_dir(),
-            'downloader-php-'
-        );
+        $phpFile = tempnam(sys_get_temp_dir(), 'downloader-php-');
 
         self::assertNotFalse($phpFile);
 
-        file_put_contents(
-            $phpFile,
-            "<?php echo 'Hello';"
-        );
+        file_put_contents($phpFile, "<?php echo 'Hello';");
 
         try {
-            $response = Download::fromFile(
-                $phpFile,
-                'test.php',
-                true
-            );
+            $response = Download::fromFile($phpFile, 'test.php', true);
 
-            self::assertSame(
-                'application/x-httpd-php',
-                $response->metadata()->mimeType()
-            );
+            self::assertSame('application/x-httpd-php', $response->metadata()->mimeType());
         } finally {
             unlink($phpFile);
         }
@@ -235,9 +136,7 @@ final class DownloadTest extends TestCase
     public function testFromDataRejectsXSendFile(): void
     {
         self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains(
-            'The `x-send-file` operation is not supported for in-memory resources.'
-        );
+        self::expectExceptionMessageIsOrContains("The `x-send-file` operation is not supported for in-memory resources.");
 
         Download::fromData(
             'Hello, World!',
@@ -250,9 +149,7 @@ final class DownloadTest extends TestCase
     public function testFromDataRejectsXAccelRedirectBecauseInternalUriIsRequired(): void
     {
         self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains(
-            'An internal URI is required for X-Accel-Redirect.'
-        );
+        self::expectExceptionMessageIsOrContains("An internal URI is required for X-Accel-Redirect.");
 
         Download::fromData(
             'Hello, World!',
@@ -265,9 +162,7 @@ final class DownloadTest extends TestCase
     public function testFromFileRejectsMissingInternalUriForXAccelRedirect(): void
     {
         self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains(
-            'An internal URI is required for X-Accel-Redirect.'
-        );
+        self::expectExceptionMessageIsOrContains("An internal URI is required for X-Accel-Redirect.");
 
         Download::fromFile(
             $this->filepath,
@@ -287,10 +182,7 @@ final class DownloadTest extends TestCase
             '/protected/download'
         );
 
-        self::assertSame(
-            ResponseAction::X_ACCEL_REDIRECT,
-            $response->metadata()->responseAction()
-        );
+        self::assertSame(ResponseAction::X_ACCEL_REDIRECT, $response->metadata()->responseAction());
     }
 
     public function testFromFileAcceptsXSendFile(): void
@@ -302,15 +194,8 @@ final class DownloadTest extends TestCase
             ResponseAction::X_SEND_FILE
         );
 
-        self::assertSame(
-            ResponseAction::X_SEND_FILE,
-            $response->metadata()->responseAction()
-        );
-
-        self::assertSame(
-            filesize($this->filepath),
-            $response->metadata()->contentLength()
-        );
+        self::assertSame(ResponseAction::X_SEND_FILE, $response->metadata()->responseAction());
+        self::assertSame(filesize($this->filepath), $response->metadata()->contentLength());
     }
 
     public function testFromFileSupportsExplicitETagStrategy(): void
@@ -324,10 +209,7 @@ final class DownloadTest extends TestCase
             ETagStrategy::SHA256
         );
 
-        self::assertSame(
-            64,
-            strlen($response->metadata()->etagValue())
-        );
+        self::assertSame(64, strlen($response->metadata()->etagValue()));
     }
 
     public function testFromDataSupportsExplicitETagStrategy(): void
@@ -340,39 +222,21 @@ final class DownloadTest extends TestCase
             ETagStrategy::SHA512
         );
 
-        self::assertSame(
-            128,
-            strlen($response->metadata()->etagValue())
-        );
+        self::assertSame(128, strlen($response->metadata()->etagValue()));
     }
 
     public function testItReturnsPreconditionResponseWhenIfNoneMatchMatches(): void
     {
-        $response = Download::fromData(
-            'Hello, World!',
-            'hello.txt',
-            'text/plain'
-        );
-
+        $response = Download::fromData('Hello, World!', 'hello.txt', 'text/plain');
         $etag = $response->metadata()->etagValue();
 
         $_SERVER['HTTP_IF_NONE_MATCH'] = '"' . $etag . '"';
 
-        $response = Download::fromData(
-            'Hello, World!',
-            'hello.txt',
-            'text/plain'
-        );
+        $response = Download::fromData('Hello, World!', 'hello.txt', 'text/plain');
+        $metadata = $response->metadata();
 
-        self::assertSame(
-            304,
-            $response->metadata()->statusCode()
-        );
-
-        self::assertSame(
-            0,
-            $response->metadata()->contentLength()
-        );
+        self::assertSame(StatusCode::NOT_MODIFIED, $metadata->statusCode());
+        self::assertSame(0, $metadata->contentLength());
     }
 
     public function testItReturnsPreconditionFailedWhenIfMatchDoesNotMatch(): void
@@ -385,15 +249,10 @@ final class DownloadTest extends TestCase
             'text/plain'
         );
 
-        self::assertSame(
-            412,
-            $response->metadata()->statusCode()
-        );
+        $metadata = $response->metadata();
 
-        self::assertSame(
-            0,
-            $response->metadata()->contentLength()
-        );
+        self::assertSame(StatusCode::PRECONDITION_FAILED, $metadata->statusCode());
+        self::assertSame(0, $metadata->contentLength());
     }
 
     public function testItUsesDefaultGetRequestWhenRequestMethodIsAbsent(): void
@@ -404,10 +263,7 @@ final class DownloadTest extends TestCase
             'text/plain'
         );
 
-        self::assertSame(
-            200,
-            $response->metadata()->statusCode()
-        );
+        self::assertSame(StatusCode::OK, $response->metadata()->statusCode());
     }
 
     public function testItRejectsUnsupportedRequestMethod(): void
@@ -415,42 +271,24 @@ final class DownloadTest extends TestCase
         $_SERVER['REQUEST_METHOD'] = 'POST';
 
         self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains(
-            'The HTTP request method `POST` is not supported.'
-        );
+        self::expectExceptionMessageIsOrContains("The HTTP request method `POST` is not supported.");
 
-        Download::fromData(
-            'Hello, World!',
-            'hello.txt',
-            'text/plain'
-        );
+        Download::fromData('Hello, World!', 'hello.txt', 'text/plain');
     }
 
     public function testFromDataRejectsEmptyData(): void
     {
         self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains(
-            'The data source cannot be empty.'
-        );
+        self::expectExceptionMessageIsOrContains("The data source cannot be empty.");
 
-        Download::fromData(
-            '',
-            'hello.txt',
-            'text/plain'
-        );
+        Download::fromData('', 'hello.txt', 'text/plain');
     }
 
     public function testFromDataRejectsEmptyFilename(): void
     {
         self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains(
-            'A filename is required when downloading data from memory.'
-        );
+        self::expectExceptionMessageIsOrContains("A filename is required when downloading data from memory.");
 
-        Download::fromData(
-            'Hello, World!',
-            '',
-            'text/plain'
-        );
+        Download::fromData('Hello, World!', '', 'text/plain');
     }
 }

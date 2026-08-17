@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Moudarir\Downloader\Tests\Unit\Range;
@@ -10,6 +11,7 @@ use PHPUnit\Framework\TestCase;
 
 final class DownloadRangeResultTest extends TestCase
 {
+
     public function testInvalidCreatesInvalidResult(): void
     {
         $result = DownloadRangeResult::invalid();
@@ -30,13 +32,7 @@ final class DownloadRangeResultTest extends TestCase
 
     public function testValidCreatesValidResult(): void
     {
-        $range = DownloadRange::partial(
-            [
-                new DownloadRangeItem(0, 9),
-            ],
-            null
-        );
-
+        $range = DownloadRange::partial([new DownloadRangeItem(0, 9)], null);
         $result = DownloadRangeResult::valid($range);
 
         self::assertFalse($result->isInvalid());
@@ -56,14 +52,7 @@ final class DownloadRangeResultTest extends TestCase
 
         $result = DownloadRangeResult::valid($range);
 
-        self::assertSame(
-            $range,
-            $result->getRange()
-        );
-
-        self::assertSame(
-            $range->getItems(),
-            $result->getRange()?->getItems()
-        );
+        self::assertSame($range, $result->getRange());
+        self::assertSame($range->getItems(), $result->getRange()?->getItems());
     }
 }

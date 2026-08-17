@@ -10,6 +10,7 @@ use PHPUnit\Framework\TestCase;
 
 final class DownloadRangeTest extends TestCase
 {
+
     public function testFullCreatesCompleteRange(): void
     {
         $range = DownloadRange::full(100);
@@ -17,40 +18,26 @@ final class DownloadRangeTest extends TestCase
         self::assertFalse($range->isPartial());
         self::assertFalse($range->isMultipart());
         self::assertNull($range->getBoundary());
-
         self::assertCount(1, $range->getItems());
 
-        $item = $range->getFirstItem();
+        $firstItem = $range->getFirstItem();
 
-        self::assertSame(0, $item->getStart());
-        self::assertSame(99, $item->getEnd());
-        self::assertSame(100, $item->getLength());
+        self::assertSame([0, 99, 100], [
+            $firstItem->getStart(), $firstItem->getEnd(), $firstItem->getLength()
+        ]);
     }
 
     public function testPartialCreatesPartialRange(): void
     {
-        $items = [
-            new DownloadRangeItem(0, 9),
-        ];
+        $items = [new DownloadRangeItem(0, 9)];
 
-        $range = DownloadRange::partial(
-            $items,
-            null
-        );
+        $range = DownloadRange::partial($items, null);
 
         self::assertTrue($range->isPartial());
         self::assertFalse($range->isMultipart());
         self::assertNull($range->getBoundary());
-
-        self::assertSame(
-            $items,
-            $range->getItems()
-        );
-
-        self::assertSame(
-            $items[0],
-            $range->getFirstItem()
-        );
+        self::assertSame($items, $range->getItems());
+        self::assertSame($items[0], $range->getFirstItem());
     }
 
     public function testPartialWithMultipleItemsIsMultipart(): void
@@ -62,32 +49,18 @@ final class DownloadRangeTest extends TestCase
 
         $boundary = 'test-boundary';
 
-        $range = DownloadRange::partial(
-            $items,
-            $boundary
-        );
+        $range = DownloadRange::partial($items, $boundary);
 
         self::assertTrue($range->isPartial());
         self::assertTrue($range->isMultipart());
         self::assertSame($boundary, $range->getBoundary());
-
-        self::assertSame(
-            $items,
-            $range->getItems()
-        );
-
-        self::assertSame(
-            $items[0],
-            $range->getFirstItem()
-        );
+        self::assertSame($items, $range->getItems());
+        self::assertSame($items[0], $range->getFirstItem());
     }
 
     public function testIsMultipartDependsOnNumberOfItems(): void
     {
-        $single = DownloadRange::partial(
-            [new DownloadRangeItem(10, 19)],
-            'unused-boundary'
-        );
+        $single = DownloadRange::partial([new DownloadRangeItem(10, 19)], 'unused-boundary');
 
         $multiple = DownloadRange::partial(
             [
@@ -108,20 +81,10 @@ final class DownloadRangeTest extends TestCase
             new DownloadRangeItem(0, 9),
         ];
 
-        $range = DownloadRange::partial(
-            $items,
-            'test-boundary'
-        );
+        $range = DownloadRange::partial($items, 'test-boundary');
 
-        self::assertSame(
-            $items,
-            $range->getItems()
-        );
-
-        self::assertSame(
-            20,
-            $range->getFirstItem()->getStart()
-        );
+        self::assertSame($items, $range->getItems());
+        self::assertSame(20, $range->getFirstItem()->getStart());
     }
 
     public function testGetBoundaryReturnsBoundary(): void
@@ -136,9 +99,6 @@ final class DownloadRangeTest extends TestCase
             $boundary
         );
 
-        self::assertSame(
-            $boundary,
-            $range->getBoundary()
-        );
+        self::assertSame($boundary, $range->getBoundary());
     }
 }

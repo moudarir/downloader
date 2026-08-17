@@ -4,42 +4,42 @@ declare(strict_types=1);
 
 namespace Moudarir\Downloader\Http;
 
-use Moudarir\Downloader\Enums\PreconditionStatus;
+use Moudarir\Downloader\Enums\StatusCode;
 
 final readonly class DownloadPreconditionResult
 {
 
-    public function __construct(private PreconditionStatus $status)
+    public function __construct(private StatusCode $statusCode)
     {
     }
 
     public static function proceed(): self
     {
-        return new self(PreconditionStatus::OK);
+        return new self(StatusCode::OK);
     }
 
     public static function notModified(): self
     {
-        return new self(PreconditionStatus::NOT_MODIFIED);
+        return new self(StatusCode::NOT_MODIFIED);
     }
 
     public static function preconditionFailed(): self
     {
-        return new self(PreconditionStatus::PRECONDITION_FAILED);
+        return new self(StatusCode::PRECONDITION_FAILED);
     }
 
     public function isOk(): bool
     {
-        return $this->status === PreconditionStatus::OK;
+        return $this->statusCode === StatusCode::OK;
     }
 
-    public function getStatus(): PreconditionStatus
+    public function getStatusCode(): StatusCode
     {
-        return $this->status;
+        return $this->statusCode;
     }
 
-    public function getStatusCode(): int
+    public function getStatusCodeValue(): int
     {
-        return $this->status->value;
+        return $this->statusCode->value;
     }
 }

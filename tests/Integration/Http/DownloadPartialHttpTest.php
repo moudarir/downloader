@@ -1,13 +1,16 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Moudarir\Downloader\Tests\Integration\Http;
 
+use Moudarir\Downloader\Enums\StatusCode;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
 final class DownloadPartialHttpTest extends TestCase
 {
+
     private const string URL = 'http://localhost:8080/download-partial.php';
 
     /**
@@ -17,11 +20,8 @@ final class DownloadPartialHttpTest extends TestCase
      *     body: string
      * }
      */
-    private function request(
-        string $method = 'GET',
-        array $headers = [],
-        bool $downloadBody = false,
-    ): array {
+    private function request(string $method = 'GET', array $headers = [], bool $downloadBody = false): array
+    {
         $curl = curl_init(self::URL);
 
         if ($curl === false) {
@@ -73,15 +73,10 @@ final class DownloadPartialHttpTest extends TestCase
             $message = curl_error($curl);
             curl_close($curl);
 
-            throw new RuntimeException(
-                'HTTP request failed: ' . $message
-            );
+            throw new RuntimeException('HTTP request failed: ' . $message);
         }
 
-        $status = curl_getinfo(
-            $curl,
-            CURLINFO_RESPONSE_CODE
-        );
+        $status = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
 
         curl_close($curl);
 
@@ -111,173 +106,63 @@ final class DownloadPartialHttpTest extends TestCase
     {
         $response = $this->request('HEAD');
 
-        self::assertSame(
-            200,
-            $response['status']
-        );
-
-        self::assertSame(
-            'bytes',
-            $response['headers']['accept-ranges'] ?? null
-        );
-
+        self::assertSame(StatusCode::OK->value, $response['status']);
+        self::assertSame('bytes', $response['headers']['accept-ranges'] ?? null);
         self::assertSame(
             'inline; filename="video.mov"; filename*=UTF-8\'\'video.mov',
             $response['headers']['content-disposition'] ?? null
         );
-
-        self::assertSame(
-            'video/quicktime',
-            $response['headers']['content-type'] ?? null
-        );
-
-        self::assertArrayHasKey(
-            'content-length',
-            $response['headers']
-        );
+        self::assertSame('video/quicktime', $response['headers']['content-type'] ?? null);
+        self::assertArrayHasKey('content-length', $response['headers']);
     }
 
     public function testItReturnsSingleRange(): void
     {
-        $response = $this->request(
-            'GET',
-            [
-                'Range' => 'bytes=0-9',
-            ],
-            true
-        );
+        $response = $this->request('GET', ['Range' => 'bytes=0-9'], true);
 
-        self::assertSame(
-            206,
-            $response['status']
-        );
-
-        self::assertSame(
-            '10',
-            $response['headers']['content-length'] ?? null
-        );
-
-        self::assertSame(
-            'bytes 0-9/20738368',
-            $response['headers']['content-range'] ?? null
-        );
-
-        self::assertSame(
-            'video/quicktime',
-            $response['headers']['content-type'] ?? null
-        );
-
-        self::assertSame(
-            10,
-            strlen($response['body'])
-        );
+        self::assertSame(StatusCode::PARTIAL_CONTENT->value, $response['status']);
+        self::assertSame('10', $response['headers']['content-length'] ?? null);
+        self::assertSame('bytes 0-9/20738368', $response['headers']['content-range'] ?? null);
+        self::assertSame('video/quicktime', $response['headers']['content-type'] ?? null);
+        self::assertSame(10, strlen($response['body']));
     }
 
     public function testItReturnsMultipartResponseForMultipleRanges(): void
     {
-        $response = $this->request(
-            'GET',
-            [
-                'Range' => 'bytes=0-9,20-29',
-            ],
-            true
-        );
-
-        self::assertSame(
-            206,
-            $response['status']
-        );
-
+        $response = $this->request('GET', ['Range' => 'bytes=0-9,20-29'], true);
         $contentType = $response['headers']['content-type'] ?? null;
 
         self::assertNotNull($contentType);
-
-        self::assertMatchesRegularExpression(
-            '/^multipart\/byteranges; boundary=[a-f0-9]{32}$/',
-            $contentType
-        );
-
-        self::assertSame(
-            '272',
-            $response['headers']['content-length'] ?? null
-        );
-
-        self::assertSame(
-            272,
-            strlen($response['body'])
-        );
-
-        self::assertStringContainsString(
-            "Content-Range: bytes 0-9/20738368\r\n",
-            $response['body']
-        );
-
-        self::assertStringContainsString(
-            "Content-Range: bytes 20-29/20738368\r\n",
-            $response['body']
-        );
+        self::assertMatchesRegularExpression('/^multipart\/byteranges; boundary=[a-f0-9]{32}$/', $contentType);
+        self::assertSame(StatusCode::PARTIAL_CONTENT->value, $response['status']);
+        self::assertSame('272', $response['headers']['content-length'] ?? null);
+        self::assertSame(272, strlen($response['body']));
+        self::assertStringContainsString("Content-Range: bytes 0-9/20738368\r\n", $response['body']);
+        self::assertStringContainsString("Content-Range: bytes 20-29/20738368\r\n", $response['body']);
     }
 
     public function testItReturns416ForUnsatisfiableRange(): void
     {
-        $response = $this->request(
-            'GET',
-            [
-                'Range' => 'bytes=999999999-',
-            ],
-            true
-        );
+        $response = $this->request('GET', ['Range' => 'bytes=999999999-'], true);
 
-        self::assertSame(
-            416,
-            $response['status']
-        );
-
-        self::assertSame(
-            'bytes */20738368',
-            $response['headers']['content-range'] ?? null
-        );
-
-        self::assertSame(
-            '0',
-            $response['headers']['content-length'] ?? null
-        );
-
-        self::assertSame(
-            '',
-            $response['body']
-        );
+        self::assertSame(StatusCode::RANGE_NOT_SATISFIABLE->value, $response['status']);
+        self::assertSame('bytes */20738368', $response['headers']['content-range'] ?? null);
+        self::assertSame('0', $response['headers']['content-length'] ?? null);
+        self::assertSame('', $response['body']);
     }
 
     public function testInvalidRangeFallsBackToCompleteResponse(): void
     {
-        $response = $this->request(
-            'HEAD',
-            [
-                'Range' => 'bytes=invalid',
-            ]
-        );
+        $response = $this->request('HEAD', ['Range' => 'bytes=invalid']);
 
-        self::assertSame(
-            200,
-            $response['status']
-        );
-
-        self::assertSame(
-            '20738368',
-            $response['headers']['content-length'] ?? null
-        );
-
-        self::assertArrayNotHasKey(
-            'content-range',
-            $response['headers']
-        );
+        self::assertSame(StatusCode::OK->value, $response['status']);
+        self::assertSame('20738368', $response['headers']['content-length'] ?? null);
+        self::assertArrayNotHasKey('content-range', $response['headers']);
     }
 
     public function testIfRangeMatchingEtagReturnsPartialResponse(): void
     {
         $head = $this->request('HEAD');
-
         $etag = $head['headers']['etag'] ?? null;
 
         self::assertNotNull($etag);
@@ -290,20 +175,9 @@ final class DownloadPartialHttpTest extends TestCase
             ]
         );
 
-        self::assertSame(
-            206,
-            $response['status']
-        );
-
-        self::assertSame(
-            '10',
-            $response['headers']['content-length'] ?? null
-        );
-
-        self::assertSame(
-            'bytes 0-9/20738368',
-            $response['headers']['content-range'] ?? null
-        );
+        self::assertSame(StatusCode::PARTIAL_CONTENT->value, $response['status']);
+        self::assertSame('10', $response['headers']['content-length'] ?? null);
+        self::assertSame('bytes 0-9/20738368', $response['headers']['content-range'] ?? null);
     }
 
     public function testIfRangeWithDifferentEtagFallsBackToCompleteResponse(): void
@@ -316,26 +190,14 @@ final class DownloadPartialHttpTest extends TestCase
             ]
         );
 
-        self::assertSame(
-            200,
-            $response['status']
-        );
-
-        self::assertSame(
-            '20738368',
-            $response['headers']['content-length'] ?? null
-        );
-
-        self::assertArrayNotHasKey(
-            'content-range',
-            $response['headers']
-        );
+        self::assertSame(StatusCode::OK->value, $response['status']);
+        self::assertSame('20738368', $response['headers']['content-length'] ?? null);
+        self::assertArrayNotHasKey('content-range', $response['headers']);
     }
 
     public function testWeakIfRangeEtagFallsBackToCompleteResponse(): void
     {
         $head = $this->request('HEAD');
-
         $etag = $head['headers']['etag'] ?? null;
 
         self::assertNotNull($etag);
@@ -348,26 +210,14 @@ final class DownloadPartialHttpTest extends TestCase
             ]
         );
 
-        self::assertSame(
-            200,
-            $response['status']
-        );
-
-        self::assertSame(
-            '20738368',
-            $response['headers']['content-length'] ?? null
-        );
-
-        self::assertArrayNotHasKey(
-            'content-range',
-            $response['headers']
-        );
+        self::assertSame(StatusCode::OK->value, $response['status']);
+        self::assertSame('20738368', $response['headers']['content-length'] ?? null);
+        self::assertArrayNotHasKey('content-range', $response['headers']);
     }
 
     public function testIfRangeMatchingDateReturnsPartialResponse(): void
     {
         $head = $this->request('HEAD');
-
         $lastModified = $head['headers']['last-modified'] ?? null;
 
         self::assertNotNull($lastModified);
@@ -380,26 +230,14 @@ final class DownloadPartialHttpTest extends TestCase
             ]
         );
 
-        self::assertSame(
-            206,
-            $response['status']
-        );
-
-        self::assertSame(
-            '10',
-            $response['headers']['content-length'] ?? null
-        );
-
-        self::assertSame(
-            'bytes 0-9/20738368',
-            $response['headers']['content-range'] ?? null
-        );
+        self::assertSame(StatusCode::PARTIAL_CONTENT->value, $response['status']);
+        self::assertSame('10', $response['headers']['content-length'] ?? null);
+        self::assertSame('bytes 0-9/20738368', $response['headers']['content-range'] ?? null);
     }
 
     public function testIfRangeWithDifferentDateFallsBackToCompleteResponse(): void
     {
         $head = $this->request('HEAD');
-
         $lastModified = $head['headers']['last-modified'] ?? null;
 
         self::assertNotNull($lastModified);
@@ -408,33 +246,17 @@ final class DownloadPartialHttpTest extends TestCase
 
         self::assertNotFalse($timestamp);
 
-        $differentDate = gmdate(
-                'D, d M Y H:i:s',
-                $timestamp - 86400
-            ) . ' GMT';
-
         $response = $this->request(
             'HEAD',
             [
                 'Range' => 'bytes=0-9',
-                'If-Range' => $differentDate,
+                'If-Range' => gmdate('D, d M Y H:i:s', $timestamp - 86400) . ' GMT',
             ]
         );
 
-        self::assertSame(
-            200,
-            $response['status']
-        );
-
-        self::assertSame(
-            '20738368',
-            $response['headers']['content-length'] ?? null
-        );
-
-        self::assertArrayNotHasKey(
-            'content-range',
-            $response['headers']
-        );
+        self::assertSame(StatusCode::OK->value, $response['status']);
+        self::assertSame('20738368', $response['headers']['content-length'] ?? null);
+        self::assertArrayNotHasKey('content-range', $response['headers']);
     }
 
     public function testIfRangeWithInvalidDateFallsBackToCompleteResponse(): void
@@ -447,74 +269,27 @@ final class DownloadPartialHttpTest extends TestCase
             ]
         );
 
-        self::assertSame(
-            200,
-            $response['status']
-        );
-
-        self::assertSame(
-            '20738368',
-            $response['headers']['content-length'] ?? null
-        );
-
-        self::assertArrayNotHasKey(
-            'content-range',
-            $response['headers']
-        );
+        self::assertSame(StatusCode::OK->value, $response['status']);
+        self::assertSame('20738368', $response['headers']['content-length'] ?? null);
+        self::assertArrayNotHasKey('content-range', $response['headers']);
     }
 
     public function testMultipleRangesThatOverlapAreMerged(): void
     {
-        $response = $this->request(
-            'HEAD',
-            [
-                'Range' => 'bytes=0-9,5-19',
-            ]
-        );
+        $response = $this->request('HEAD', ['Range' => 'bytes=0-9,5-19']);
 
-        self::assertSame(
-            206,
-            $response['status']
-        );
-
-        self::assertSame(
-            '20',
-            $response['headers']['content-length'] ?? null
-        );
-
-        self::assertSame(
-            'bytes 0-19/20738368',
-            $response['headers']['content-range'] ?? null
-        );
-
-        self::assertSame(
-            'video/quicktime',
-            $response['headers']['content-type'] ?? null
-        );
+        self::assertSame(StatusCode::PARTIAL_CONTENT->value, $response['status']);
+        self::assertSame('20', $response['headers']['content-length'] ?? null);
+        self::assertSame('bytes 0-19/20738368', $response['headers']['content-range'] ?? null);
+        self::assertSame('video/quicktime', $response['headers']['content-type'] ?? null);
     }
 
     public function testMultipleRangesThatAreAdjacentAreMerged(): void
     {
-        $response = $this->request(
-            'HEAD',
-            [
-                'Range' => 'bytes=0-9,10-19',
-            ]
-        );
+        $response = $this->request('HEAD', ['Range' => 'bytes=0-9,10-19']);
 
-        self::assertSame(
-            206,
-            $response['status']
-        );
-
-        self::assertSame(
-            '20',
-            $response['headers']['content-length'] ?? null
-        );
-
-        self::assertSame(
-            'bytes 0-19/20738368',
-            $response['headers']['content-range'] ?? null
-        );
+        self::assertSame(StatusCode::PARTIAL_CONTENT->value, $response['status']);
+        self::assertSame('20', $response['headers']['content-length'] ?? null);
+        self::assertSame('bytes 0-19/20738368', $response['headers']['content-range'] ?? null);
     }
 }

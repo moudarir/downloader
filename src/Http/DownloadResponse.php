@@ -6,6 +6,7 @@ namespace Moudarir\Downloader\Http;
 
 use Moudarir\Downloader\Enums\ContentDisposition;
 use Moudarir\Downloader\Enums\ResponseAction;
+use Moudarir\Downloader\Enums\StatusCode;
 use Moudarir\Downloader\ETag\DownloadETag;
 use Moudarir\Downloader\Exceptions\DownloadException;
 use Moudarir\Downloader\Helpers\MetadataHelper;
@@ -22,7 +23,7 @@ final readonly class DownloadResponse
         private DownloadRequest            $request,
         private ResponseAction             $responseAction,
         private DownloadETag               $etag,
-        private int                        $statusCode,
+        private StatusCode                 $statusCode,
         private int                        $contentLength,
         private ?string                    $contentType,
         private ?DownloadRange             $range = null,
@@ -32,7 +33,7 @@ final readonly class DownloadResponse
     }
 
     public static function precondition(
-        int $statusCode,
+        StatusCode $statusCode,
         DownloadHeaders $headers,
         DownloadResource $resource,
         DownloadRequest $request,
@@ -63,7 +64,7 @@ final readonly class DownloadResponse
         DownloadETag $etag,
     ): self
     {
-        $statusCode = 200;
+        $statusCode = StatusCode::OK;
         $contentType = $resource->getMime();
         $contentLength = $resource->getFilesize();
         $range = null;
@@ -83,7 +84,7 @@ final readonly class DownloadResponse
                     $request,
                     $responseAction,
                     $etag,
-                    416,
+                    StatusCode::RANGE_NOT_SATISFIABLE,
                     0,
                     null,
                 );
@@ -93,7 +94,7 @@ final readonly class DownloadResponse
                 $range = $result->getRange();
 
                 if ($range->isPartial()) {
-                    $statusCode = 206;
+                    $statusCode = StatusCode::PARTIAL_CONTENT;
 
                     if ($range->isMultipart()) {
                         $multipart = new DownloadMultipartResponse($resource, $range);
@@ -138,9 +139,9 @@ final readonly class DownloadResponse
             ->applyDefaultHeaders();
 
         match ($this->statusCode) {
-            304 => $this->sendNotModified(),
-            412 => $this->sendPreconditionFailed(),
-            416 => $this->sendRangeNotSatisfiable(),
+            StatusCode::NOT_MODIFIED => $this->sendNotModified(),
+            StatusCode::PRECONDITION_FAILED => $this->sendPreconditionFailed(),
+            StatusCode::RANGE_NOT_SATISFIABLE => $this->sendRangeNotSatisfiable(),
             default => $this->sendRepresentation(),
         };
     }
@@ -253,7 +254,7 @@ final readonly class DownloadResponse
             header($name . ': ' . $value);
         }
 
-        http_response_code($this->statusCode);
+        http_response_code($this->statusCode->value);
     }
 
     private static function clearOutputBuffers(): void

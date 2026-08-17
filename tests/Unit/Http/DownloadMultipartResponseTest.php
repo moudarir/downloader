@@ -18,13 +18,7 @@ final class DownloadMultipartResponseTest extends TestCase
 
     public function testItBuildsTheMultipartContentType(): void
     {
-        $resource = $this->resource();
-        $range = $this->range();
-
-        $response = new DownloadMultipartResponse(
-            $resource,
-            $range
-        );
+        $response = new DownloadMultipartResponse($this->resource(), $this->range());
 
         self::assertSame(
             'multipart/byteranges; boundary=test-boundary',
@@ -34,13 +28,7 @@ final class DownloadMultipartResponseTest extends TestCase
 
     public function testItCalculatesContentLengthForMultipleRanges(): void
     {
-        $resource = $this->resource();
-        $range = $this->range();
-
-        $response = new DownloadMultipartResponse(
-            $resource,
-            $range
-        );
+        $response = new DownloadMultipartResponse($this->resource(), $this->range());
 
         $expected =
             strlen(
@@ -61,21 +49,12 @@ final class DownloadMultipartResponseTest extends TestCase
             + 2
             + strlen("--test-boundary--\r\n");
 
-        self::assertSame(
-            $expected,
-            $response->getContentLength()
-        );
+        self::assertSame($expected, $response->getContentLength());
     }
 
     public function testItOutputsCompleteMultipartBody(): void
     {
-        $resource = $this->resource();
-        $range = $this->range();
-
-        $response = new DownloadMultipartResponse(
-            $resource,
-            $range
-        );
+        $response = new DownloadMultipartResponse($this->resource(), $this->range());
 
         ob_start();
 
@@ -99,18 +78,12 @@ final class DownloadMultipartResponseTest extends TestCase
             "klmno\r\n" .
             "--test-boundary--\r\n";
 
-        self::assertSame(
-            $expected,
-            $output
-        );
+        self::assertSame($expected, $output);
     }
 
     public function testContentLengthMatchesActualOutputLength(): void
     {
-        $response = new DownloadMultipartResponse(
-            $this->resource(),
-            $this->range()
-        );
+        $response = new DownloadMultipartResponse($this->resource(), $this->range());
 
         ob_start();
 
@@ -121,18 +94,12 @@ final class DownloadMultipartResponseTest extends TestCase
             ob_end_clean();
         }
 
-        self::assertSame(
-            $response->getContentLength(),
-            strlen($output)
-        );
+        self::assertSame($response->getContentLength(), strlen($output));
     }
 
     public function testItIncludesResourceMimeTypeInEveryPart(): void
     {
-        $response = new DownloadMultipartResponse(
-            $this->resource('video/mp4'),
-            $this->range()
-        );
+        $response = new DownloadMultipartResponse($this->resource('video/mp4'), $this->range());
 
         ob_start();
 
@@ -143,21 +110,12 @@ final class DownloadMultipartResponseTest extends TestCase
             ob_end_clean();
         }
 
-        self::assertSame(
-            2,
-            substr_count(
-                $output,
-                "Content-Type: video/mp4\r\n"
-            )
-        );
+        self::assertSame(2, substr_count($output, "Content-Type: video/mp4\r\n"));
     }
 
     public function testItUsesTheResourceFilesizeInEveryContentRange(): void
     {
-        $response = new DownloadMultipartResponse(
-            $this->resource(),
-            $this->range()
-        );
+        $response = new DownloadMultipartResponse($this->resource(), $this->range());
 
         ob_start();
 
@@ -168,31 +126,14 @@ final class DownloadMultipartResponseTest extends TestCase
             ob_end_clean();
         }
 
-        self::assertSame(
-            2,
-            substr_count(
-                $output,
-                'Content-Range: bytes '
-            )
-        );
-
-        self::assertStringContainsString(
-            'Content-Range: bytes 0-4/26',
-            $output
-        );
-
-        self::assertStringContainsString(
-            'Content-Range: bytes 10-14/26',
-            $output
-        );
+        self::assertSame(2, substr_count($output, 'Content-Range: bytes '));
+        self::assertStringContainsString('Content-Range: bytes 0-4/26', $output);
+        self::assertStringContainsString('Content-Range: bytes 10-14/26', $output);
     }
 
     public function testItEndsWithTheClosingBoundary(): void
     {
-        $response = new DownloadMultipartResponse(
-            $this->resource(),
-            $this->range()
-        );
+        $response = new DownloadMultipartResponse($this->resource(), $this->range());
 
         ob_start();
 
@@ -203,10 +144,7 @@ final class DownloadMultipartResponseTest extends TestCase
             ob_end_clean();
         }
 
-        self::assertStringEndsWith(
-            '--test-boundary--' . "\r\n",
-            $output
-        );
+        self::assertStringEndsWith('--test-boundary--' . "\r\n", $output);
     }
 
     public function testItOutputsOnlyRequestedRanges(): void
@@ -244,10 +182,7 @@ final class DownloadMultipartResponseTest extends TestCase
             "uvw\r\n" .
             "--test-boundary--\r\n";
 
-        self::assertSame(
-            $expected,
-            $output
-        );
+        self::assertSame($expected, $output);
     }
 
     private function range(): DownloadRange
@@ -261,16 +196,15 @@ final class DownloadMultipartResponseTest extends TestCase
         );
     }
 
-    private function resource(
-        string $mime = 'text/plain',
-    ): DownloadResource {
-        return new readonly class($mime) implements DownloadResource {
+    private function resource(string $mime = 'text/plain'): DownloadResource
+    {
+        return new readonly class($mime) implements DownloadResource
+        {
 
             private const string DATA = 'abcdefghijklmnopqrstuvwxyz';
 
-            public function __construct(
-                private string $mime,
-            ) {
+            public function __construct(private string $mime)
+            {
             }
 
             public function getFilename(): string
@@ -295,11 +229,7 @@ final class DownloadMultipartResponseTest extends TestCase
 
             public function output(int $length, int $start = 0): void
             {
-                echo substr(
-                    self::DATA,
-                    $start,
-                    $length
-                );
+                echo substr(self::DATA, $start, $length);
             }
 
             public function getFilepath(): ?string
@@ -314,9 +244,7 @@ final class DownloadMultipartResponseTest extends TestCase
 
             public function getSupportedETagStrategies(): array
             {
-                return [
-                    ETagStrategy::MTIME,
-                ];
+                return [ETagStrategy::MTIME];
             }
         };
     }
