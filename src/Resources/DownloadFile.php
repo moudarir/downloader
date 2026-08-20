@@ -4,15 +4,17 @@ declare(strict_types=1);
 
 namespace Moudarir\Downloader\Resources;
 
-use Moudarir\Downloader\DownloadConfig;
 use Moudarir\Downloader\Enums\ETagStrategy;
 use Moudarir\Downloader\Exceptions\DownloadException;
 use Moudarir\Downloader\Helpers\CommonHelper;
-use Moudarir\MimeDetector\Exceptions\MimeTypeException;
-use Moudarir\MimeDetector\MimeType;
+use Moudarir\Downloader\Helpers\FileHelper;
+use Moudarir\Downloader\Traits\StreamOutputTrait;
+use ValueError;
 
 final readonly class DownloadFile implements DownloadResource
 {
+
+    use StreamOutputTrait;
 
     /**
      * @var list<ETagStrategy>
@@ -58,7 +60,7 @@ final readonly class DownloadFile implements DownloadResource
             $filepath,
             $filename,
             $filesize,
-            self::detectMimeType($filepath, $mime),
+            FileHelper::detectMimeType($filepath, $mime),
             ($lastModified = filemtime($filepath)) === false ? null : $lastModified
         );
     }
@@ -92,7 +94,7 @@ final readonly class DownloadFile implements DownloadResource
     {
         try {
             return hash_file($algorithm, $this->filepath);
-        } catch (\ValueError) {
+        } catch (ValueError) {
             return null;
         }
     }
@@ -104,28 +106,7 @@ final readonly class DownloadFile implements DownloadResource
         }
 
         try {
-            if ($start > 0 && fseek($handle, $start) !== 0) {
-                return;
-            }
-
-            $bytesRemaining = $length;
-
-            while ($bytesRemaining > 0 && !feof($handle)) {
-                $chunkSize = min(DownloadConfig::CHUNK_SIZE, $bytesRemaining);
-                $buffer = fread($handle, $chunkSize);
-
-                if ($buffer === false || $buffer === '') {
-                    break;
-                }
-
-                echo $buffer;
-
-                $bytesRemaining -= strlen($buffer);
-
-                if (connection_aborted() !== 0) {
-                    break;
-                }
-            }
+            $this->outputStream($handle, $length, $start);
         } finally {
             fclose($handle);
         }
@@ -134,22 +115,5 @@ final readonly class DownloadFile implements DownloadResource
     public function getSupportedETagStrategies(): array
     {
         return self::SUPPORTED_ETAG_STRATEGIES;
-    }
-
-    /**
-     * @throws DownloadException
-     */
-    private static function detectMimeType(string $filepath, true|string $mime): string
-    {
-        if (is_string($mime)) {
-            $mime = trim($mime);
-            return $mime !== '' ? $mime : DownloadConfig::DEFAULT_MIME;
-        }
-
-        try {
-            return MimeType::detect($filepath)->value();
-        } catch (MimeTypeException $exception) {
-            throw DownloadException::generic($exception->getMessage());
-        }
     }
 }

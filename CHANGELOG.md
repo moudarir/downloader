@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [2.4.0] - 2026-08-20
+
+### Added
+
+* Added `FileHelper` to centralize file-related operations such as MIME type detection and `Content-Disposition` formatting.
+* Added `StreamOutputTrait` to centralize stream output handling for file and in-memory resources.
+* Added shared test infrastructure for integration resources, HTTP requests and test configuration.
+
+### Changed
+
+* Centralized supported HTTP header names in `DownloadConfig::VALID_HEADERS`.
+* Improved HTTP header name normalization and validation through `CommonHelper::validateHeaderName()`.
+* Improved multipart response streaming by flushing multipart sections as they are emitted.
+* Improved client disconnection handling during streamed output.
+* Extended the integration test environment with reusable file and data fixtures.
+* Renamed HTTP file integration examples and tests to distinguish file resources from in-memory data resources.
+
+### Refactored
+
+* Refactored `DownloadFile` and `DownloadData` to share common stream output handling through `StreamOutputTrait`.
+* Replaced hardcoded HTTP status codes with the typed `StatusCode` enum throughout the library and tests.
+* Renamed `DownloadRangeItemStatus` to `RangeItemStatus`.
+
+
 ## [2.3.0] - 2026-08-16
 
 ### Added

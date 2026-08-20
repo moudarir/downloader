@@ -18,18 +18,18 @@ final class DownloadConfig
     /**
      * Headers explicitly supported by the library.
      *
-     * @var list<string>
+     * @var array<string, string>
      */
     public const array VALID_HEADERS = [
-        'Accept-Ranges',
-        'Cache-Control',
-        'Content-Disposition',
-        'Content-Length',
-        'Content-Range',
-        'Content-Type',
-        'ETag',
-        'Last-Modified',
-        'X-Accel-Redirect',
-        'X-Sendfile',
+        'accept-ranges'       => 'Accept-Ranges',
+        'cache-control'       => 'Cache-Control',
+        'content-disposition' => 'Content-Disposition',
+        'content-length'      => 'Content-Length',
+        'content-range'       => 'Content-Range',
+        'content-type'        => 'Content-Type',
+        'etag'                => 'ETag',
+        'last-modified'       => 'Last-Modified',
+        'x-accel-redirect'    => 'X-Accel-Redirect',
+        'x-sendfile'          => 'X-Sendfile',
     ];
 }

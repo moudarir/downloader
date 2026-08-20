@@ -8,9 +8,13 @@ use Moudarir\Downloader\DownloadConfig;
 use Moudarir\Downloader\Enums\ETagStrategy;
 use Moudarir\Downloader\Exceptions\DownloadException;
 use Moudarir\Downloader\Helpers\CommonHelper;
+use Moudarir\Downloader\Traits\StreamOutputTrait;
+use ValueError;
 
 final readonly class DownloadData implements DownloadResource
 {
+
+    use StreamOutputTrait;
 
     /**
      * @var list<ETagStrategy>
@@ -70,7 +74,7 @@ final readonly class DownloadData implements DownloadResource
     {
         try {
             return hash($algorithm, $this->data);
-        } catch (\ValueError) {
+        } catch (ValueError) {
             return null;
         }
     }
@@ -82,22 +86,20 @@ final readonly class DownloadData implements DownloadResource
 
     public function output(int $length, int $start = 0): void
     {
-        if ($length <= 0) {
+        if ($length <= 0 || empty($this->data)) {
             return;
         }
 
-        $bytesSent = 0;
+        // php://temp garde les données en RAM jusqu'à 2Mo, puis passe sur disque temporaire
+        if (($stream = fopen('php://temp', 'r+')) === false) {
+            return;
+        }
 
-        while ($bytesSent < $length) {
-            if (connection_aborted() !== 0) {
-                break;
-            }
-
-            $readLength = min(DownloadConfig::CHUNK_SIZE, $length - $bytesSent);
-
-            echo substr($this->data, $start + $bytesSent, $readLength);
-
-            $bytesSent += $readLength;
+        try {
+            fwrite($stream, $this->data);
+            $this->outputStream($stream, $length, $start);
+        } finally {
+            fclose($stream);
         }
     }
 }

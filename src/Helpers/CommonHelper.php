@@ -31,13 +31,8 @@ final class CommonHelper
             throw DownloadException::invalidHeaderName($name);
         }
 
-        foreach (DownloadConfig::VALID_HEADERS as $header) {
-            if (strcasecmp($name, $header) === 0) {
-                return $header;
-            }
-        }
-
-        throw DownloadException::invalidHeaderName($name);
+        return DownloadConfig::VALID_HEADERS[strtolower($name)]
+            ?? throw DownloadException::invalidHeaderName($name);
     }
 
     /**

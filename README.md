@@ -157,15 +157,21 @@ $response->send();
 Response metadata can be inspected before sending the response through `DownloadResponse::metadata()`:
 
 ```php
+use Moudarir\Downloader\Enums\StatusCode;
+
 $response = Download::fromFile('/path/to/file.pdf', mime: 'application/pdf');
 
 $metadata = $response->metadata();
 
-echo $metadata->statusCode();
+echo $metadata->statusCode()->value;
 echo $metadata->contentLength();
 echo $metadata->contentType();
 echo $metadata->filename();
 echo $metadata->etagValue();
+
+if ($metadata->statusCode() === StatusCode::OK) {
+    // ...
+}
 
 $response->send();
 ```
@@ -173,10 +179,11 @@ $response->send();
 Available metadata includes:
 
 * resource information such as filepath, filename, filesize, MIME type and Last-Modified;
-* response status, Content-Length and Content-Type;
+* Content-Length and Content-Type;
 * the selected ResponseAction;
 * ETag value and weak/strong state;
 * Range information, including single and multipart ranges.
+* `statusCode()` returns a `StatusCode` enum.
 
 ## ETag
 
@@ -231,13 +238,13 @@ HTTP-date parsing supports the HTTP-date formats defined by `RFC 9110`.
 
 ## HTTP Responses
 
-The library handles the following response statuses:
+The library supports the following response status codes:
 
-* `200 OK`
-* `206 Partial Content`
-* `304 Not Modified`
-* `412 Precondition Failed`
-* `416 Range Not Satisfiable`
+* `StatusCode::OK` (`200 OK`)
+* `StatusCode::PARTIAL_CONTENT` (`206 Partial Content`)
+* `StatusCode::NOT_MODIFIED` (`304 Not Modified`)
+* `StatusCode::PRECONDITION_FAILED` (`412 Precondition Failed`)
+* `StatusCode::RANGE_NOT_SATISFIABLE` (`416 Range Not Satisfiable`)
 
 `412 Precondition Failed` responses do not include representation headers such as `Content-Type`, `Content-Disposition` or the representation `Content-Length`.
 

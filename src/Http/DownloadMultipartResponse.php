@@ -37,13 +37,16 @@ final readonly class DownloadMultipartResponse
     {
         foreach ($this->range->getItems() as $item) {
             echo $this->getPartHeader($item);
+            flush();
 
             $this->resource->output($item->getLength(), $item->getStart());
 
             echo "\r\n";
+            flush();
         }
 
         echo $this->getClosingBoundary();
+        flush();
     }
 
     private function getPartHeader(DownloadRangeItem $item): string
