@@ -4,7 +4,7 @@ set -u
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-PID_FILE="$PROJECT_ROOT/examples/.php-server.pid"
+PID_FILE="$PROJECT_ROOT/examples/resources/.php-server.pid"
 
 if [ ! -f "$PID_FILE" ]; then
     echo "PHP server is not running."

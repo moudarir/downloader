@@ -4,248 +4,126 @@ declare(strict_types=1);
 
 namespace Moudarir\Downloader\Tests\Unit\Http;
 
-use Moudarir\Downloader\Enums\ETagStrategy;
 use Moudarir\Downloader\Http\DownloadMultipartResponse;
 use Moudarir\Downloader\Range\DownloadRange;
 use Moudarir\Downloader\Range\DownloadRangeItem;
-use Moudarir\Downloader\Resources\DownloadResource;
+use Moudarir\Downloader\Tests\Support\FixtureData;
+use Moudarir\Downloader\Tests\Support\FixtureFile;
+use Moudarir\Downloader\Tests\Support\TestConfig;
 use PHPUnit\Framework\TestCase;
 
 final class DownloadMultipartResponseTest extends TestCase
 {
 
-    private const string BOUNDARY = 'test-boundary';
+    /**
+     * @var array<string, mixed>
+     */
+    private static array $multipart;
 
-    public function testItBuildsTheMultipartContentType(): void
+    private static string $boundary;
+
+    public static function setUpBeforeClass(): void
     {
-        $response = new DownloadMultipartResponse($this->resource(), $this->range());
+        self::$multipart = TestConfig::multipart();
+        self::$boundary = self::$multipart['boundary'];
+    }
+
+    public function testItReturnsCorrectContentType(): void
+    {
+        $resource = FixtureData::create();
+        $range = DownloadRange::partial([new DownloadRangeItem(0, 5)], self::$boundary);
+
+        $multipart = new DownloadMultipartResponse($resource, $range);
 
         self::assertSame(
-            'multipart/byteranges; boundary=test-boundary',
-            $response->getContentType()
+            'multipart/byteranges; boundary=' . self::$boundary,
+            $multipart->getContentType()
         );
     }
 
-    public function testItCalculatesContentLengthForMultipleRanges(): void
+    public function testItOutputsCorrectMultipartBodyWithDataResource(): void
     {
-        $response = new DownloadMultipartResponse($this->resource(), $this->range());
+        $resource = FixtureData::create();
+        $fixture = TestConfig::resourceData();
+        $content = $fixture['content'];
+        $totalSize = $resource->getFilesize();
 
-        $expected =
-            strlen(
-                "--test-boundary\r\n" .
-                "Content-Type: text/plain\r\n" .
-                "Content-Range: bytes 0-4/26\r\n" .
-                "\r\n"
-            )
-            + 5
-            + 2
-            + strlen(
-                "--test-boundary\r\n" .
-                "Content-Type: text/plain\r\n" .
-                "Content-Range: bytes 10-14/26\r\n" .
-                "\r\n"
-            )
-            + 5
-            + 2
-            + strlen("--test-boundary--\r\n");
+        $item1 = new DownloadRangeItem(0, 9);
+        $item2 = new DownloadRangeItem(15, 24);
 
-        self::assertSame($expected, $response->getContentLength());
-    }
+        $range = DownloadRange::partial([$item1, $item2], self::$boundary);
+        $multipart = new DownloadMultipartResponse($resource, $range);
 
-    public function testItOutputsCompleteMultipartBody(): void
-    {
-        $response = new DownloadMultipartResponse($this->resource(), $this->range());
+        $chunk1 = substr($content, 0, 10);
+        $chunk2 = substr($content, 15, 10);
+
+        $expectedBody = "--" . self::$boundary . "\r\n"
+            . "Content-Type: {$resource->getMime()}\r\n"
+            . "Content-Range: bytes 0-9/$totalSize\r\n\r\n"
+            . $chunk1 . "\r\n"
+            . "--" . self::$boundary . "\r\n"
+            . "Content-Type: {$resource->getMime()}\r\n"
+            . "Content-Range: bytes 15-24/$totalSize\r\n\r\n"
+            . $chunk2 . "\r\n"
+            . "--" . self::$boundary . "--\r\n";
 
         ob_start();
+        $multipart->output();
+        $output = ob_get_clean();
 
-        try {
-            $response->output();
-            $output = ob_get_contents();
-        } finally {
-            ob_end_clean();
-        }
-
-        $expected =
-            "--test-boundary\r\n" .
-            "Content-Type: text/plain\r\n" .
-            "Content-Range: bytes 0-4/26\r\n" .
-            "\r\n" .
-            "abcde\r\n" .
-            "--test-boundary\r\n" .
-            "Content-Type: text/plain\r\n" .
-            "Content-Range: bytes 10-14/26\r\n" .
-            "\r\n" .
-            "klmno\r\n" .
-            "--test-boundary--\r\n";
-
-        self::assertSame($expected, $output);
+        self::assertSame($expectedBody, $output);
+        self::assertSame(strlen($expectedBody), $multipart->getContentLength());
     }
 
-    public function testContentLengthMatchesActualOutputLength(): void
+    public function testItOutputsCorrectMultipartBodyWithFileResource(): void
     {
-        $response = new DownloadMultipartResponse($this->resource(), $this->range());
+        $resource = FixtureFile::create('pdf');
+        $filepath = (string) $resource->getFilepath();
+        $totalSize = $resource->getFilesize();
+
+        $item1 = new DownloadRangeItem(0, 49);
+        $item2 = new DownloadRangeItem(100, 149);
+
+        $range = DownloadRange::partial([$item1, $item2], self::$boundary);
+        $multipart = new DownloadMultipartResponse($resource, $range);
+
+        $chunk1 = (string) file_get_contents($filepath, false, null, 0, 50);
+        $chunk2 = (string) file_get_contents($filepath, false, null, 100, 50);
+
+        $expectedBody = "--" . self::$boundary . "\r\n"
+            . "Content-Type: {$resource->getMime()}\r\n"
+            . "Content-Range: bytes 0-49/$totalSize\r\n\r\n"
+            . $chunk1 . "\r\n"
+            . "--" . self::$boundary . "\r\n"
+            . "Content-Type: {$resource->getMime()}\r\n"
+            . "Content-Range: bytes 100-149/$totalSize\r\n\r\n"
+            . $chunk2 . "\r\n"
+            . "--" . self::$boundary . "--\r\n";
 
         ob_start();
+        $multipart->output();
+        $output = ob_get_clean();
 
-        try {
-            $response->output();
-            $output = ob_get_contents();
-        } finally {
-            ob_end_clean();
-        }
-
-        self::assertSame($response->getContentLength(), strlen($output));
+        self::assertSame($expectedBody, $output);
+        self::assertSame(strlen($expectedBody), $multipart->getContentLength());
     }
 
-    public function testItIncludesResourceMimeTypeInEveryPart(): void
+    public function testContentLengthStrictlyMatchesOutputSize(): void
     {
-        $response = new DownloadMultipartResponse($this->resource('video/mp4'), $this->range());
+        $resource = FixtureData::create();
+        $items = [
+            new DownloadRangeItem(0, 4),
+            new DownloadRangeItem(10, 14),
+            new DownloadRangeItem(20, 29),
+        ];
+
+        $range = DownloadRange::partial($items, self::$boundary);
+        $multipart = new DownloadMultipartResponse($resource, $range);
 
         ob_start();
+        $multipart->output();
+        $output = ob_get_clean();
 
-        try {
-            $response->output();
-            $output = ob_get_contents();
-        } finally {
-            ob_end_clean();
-        }
-
-        self::assertSame(2, substr_count($output, "Content-Type: video/mp4\r\n"));
-    }
-
-    public function testItUsesTheResourceFilesizeInEveryContentRange(): void
-    {
-        $response = new DownloadMultipartResponse($this->resource(), $this->range());
-
-        ob_start();
-
-        try {
-            $response->output();
-            $output = ob_get_contents();
-        } finally {
-            ob_end_clean();
-        }
-
-        self::assertSame(2, substr_count($output, 'Content-Range: bytes '));
-        self::assertStringContainsString('Content-Range: bytes 0-4/26', $output);
-        self::assertStringContainsString('Content-Range: bytes 10-14/26', $output);
-    }
-
-    public function testItEndsWithTheClosingBoundary(): void
-    {
-        $response = new DownloadMultipartResponse($this->resource(), $this->range());
-
-        ob_start();
-
-        try {
-            $response->output();
-            $output = ob_get_contents();
-        } finally {
-            ob_end_clean();
-        }
-
-        self::assertStringEndsWith('--test-boundary--' . "\r\n", $output);
-    }
-
-    public function testItOutputsOnlyRequestedRanges(): void
-    {
-        $response = new DownloadMultipartResponse(
-            $this->resource(),
-            DownloadRange::partial(
-                [
-                    new DownloadRangeItem(5, 7),
-                    new DownloadRangeItem(20, 22),
-                ],
-                self::BOUNDARY
-            )
-        );
-
-        ob_start();
-
-        try {
-            $response->output();
-            $output = ob_get_contents();
-        } finally {
-            ob_end_clean();
-        }
-
-        $expected =
-            "--test-boundary\r\n" .
-            "Content-Type: text/plain\r\n" .
-            "Content-Range: bytes 5-7/26\r\n" .
-            "\r\n" .
-            "fgh\r\n" .
-            "--test-boundary\r\n" .
-            "Content-Type: text/plain\r\n" .
-            "Content-Range: bytes 20-22/26\r\n" .
-            "\r\n" .
-            "uvw\r\n" .
-            "--test-boundary--\r\n";
-
-        self::assertSame($expected, $output);
-    }
-
-    private function range(): DownloadRange
-    {
-        return DownloadRange::partial(
-            [
-                new DownloadRangeItem(0, 4),
-                new DownloadRangeItem(10, 14),
-            ],
-            self::BOUNDARY
-        );
-    }
-
-    private function resource(string $mime = 'text/plain'): DownloadResource
-    {
-        return new readonly class($mime) implements DownloadResource
-        {
-
-            private const string DATA = 'abcdefghijklmnopqrstuvwxyz';
-
-            public function __construct(private string $mime)
-            {
-            }
-
-            public function getFilename(): string
-            {
-                return 'test.txt';
-            }
-
-            public function getFilesize(): int
-            {
-                return strlen(self::DATA);
-            }
-
-            public function getMime(): string
-            {
-                return $this->mime;
-            }
-
-            public function getLastModified(): ?int
-            {
-                return null;
-            }
-
-            public function output(int $length, int $start = 0): void
-            {
-                echo substr(self::DATA, $start, $length);
-            }
-
-            public function getFilepath(): ?string
-            {
-                return null;
-            }
-
-            public function getHash(string $algorithm): ?string
-            {
-                return null;
-            }
-
-            public function getSupportedETagStrategies(): array
-            {
-                return [ETagStrategy::MTIME];
-            }
-        };
+        self::assertSame(strlen($output), $multipart->getContentLength());
     }
 }

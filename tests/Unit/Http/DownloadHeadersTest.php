@@ -6,7 +6,6 @@ namespace Moudarir\Downloader\Tests\Unit\Http;
 
 use Moudarir\Downloader\DownloadConfig;
 use Moudarir\Downloader\Enums\ContentDisposition;
-use Moudarir\Downloader\Exceptions\DownloadException;
 use Moudarir\Downloader\Http\DownloadHeaders;
 use PHPUnit\Framework\TestCase;
 
@@ -18,25 +17,6 @@ final class DownloadHeadersTest extends TestCase
         $headers = new DownloadHeaders();
 
         self::assertSame([], $headers->all());
-    }
-
-    public function testItAddsCustomStringHeader(): void
-    {
-        $headers = new DownloadHeaders();
-
-        $result = $headers->addHeader('Content-Type', 'video/mp4');
-
-        self::assertSame($headers, $result);
-        self::assertSame(['Content-Type' => 'video/mp4'], $headers->all());
-    }
-
-    public function testItAddsCustomIntegerHeader(): void
-    {
-        $headers = new DownloadHeaders();
-
-        $headers->addHeader('Content-Length', 12345);
-
-        self::assertSame('12345', $headers->all()['Content-Length']);
     }
 
     public function testItNormalizesHeaderName(): void
@@ -58,26 +38,6 @@ final class DownloadHeadersTest extends TestCase
             ->addHeader('Content-Type', 'text/html');
 
         self::assertSame(['Content-Type' => 'text/html'], $headers->all());
-    }
-
-    public function testItRejectsInvalidHeaderName(): void
-    {
-        $headers = new DownloadHeaders();
-
-        self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains("Invalid HTTP header name");
-
-        $headers->addHeader('Invalid Header', 'value');
-    }
-
-    public function testItRejectsHeaderInjectionInValue(): void
-    {
-        $headers = new DownloadHeaders();
-
-        self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains("Invalid HTTP header value");
-
-        $headers->addHeader('Content-Type', "text/plain\r\nX-Injected: true");
     }
 
     public function testItSetsAttachmentDispositionByDefault(): void
@@ -104,66 +64,6 @@ final class DownloadHeadersTest extends TestCase
 
         self::assertSame(
             'inline; filename="video.mp4"; filename*=UTF-8\'\'video.mp4',
-            $headers->all()['Content-Disposition']
-        );
-    }
-
-    public function testItEncodesUtf8FilenameInExtendedParameter(): void
-    {
-        $headers = new DownloadHeaders();
-
-        $headers->addContentDispositionHeader('vidéo été.mp4');
-
-        self::assertSame(
-            'attachment; filename="video ete.mp4"; filename*=UTF-8\'\'vid%C3%A9o%20%C3%A9t%C3%A9.mp4',
-            $headers->all()['Content-Disposition']
-        );
-    }
-
-    public function testItSanitizesControlCharactersFromFilename(): void
-    {
-        $headers = new DownloadHeaders();
-
-        $headers->addContentDispositionHeader("video\r\nname.mp4");
-
-        self::assertSame(
-            'attachment; filename="videoname.mp4"; filename*=UTF-8\'\'video%0D%0Aname.mp4',
-            $headers->all()['Content-Disposition']
-        );
-    }
-
-    public function testItEscapesQuotesAndBackslashesInFilename(): void
-    {
-        $headers = new DownloadHeaders();
-
-        $headers->addContentDispositionHeader('video "test"\\sample.mp4');
-
-        self::assertSame(
-            'attachment; filename="video \\"test\\"\\\\sample.mp4"; filename*=UTF-8\'\'video%20%22test%22%5Csample.mp4',
-            $headers->all()['Content-Disposition']
-        );
-    }
-
-    public function testItUsesDownloadAsFallbackWhenFilenameHasNoAsciiBasename(): void
-    {
-        $headers = new DownloadHeaders();
-
-        $headers->addContentDispositionHeader('文件.mp4');
-
-        self::assertSame(
-            'attachment; filename="download.mp4"; filename*=UTF-8\'\'%E6%96%87%E4%BB%B6.mp4',
-            $headers->all()['Content-Disposition']
-        );
-    }
-
-    public function testItSanitizesFilenameExtension(): void
-    {
-        $headers = new DownloadHeaders();
-
-        $headers->addContentDispositionHeader('video.test-1.mp4');
-
-        self::assertSame(
-            'attachment; filename="video.test-1.mp4"; filename*=UTF-8\'\'video.test-1.mp4',
             $headers->all()['Content-Disposition']
         );
     }

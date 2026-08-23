@@ -10,25 +10,11 @@ use PHPUnit\Framework\TestCase;
 final class DownloadRangeItemTest extends TestCase
 {
 
-    public function testItReturnsRangeStart(): void
+    public function testItReturnsRangeStartAndEndAndLength(): void
     {
         $item = new DownloadRangeItem(10, 19);
 
-        self::assertSame(10, $item->getStart());
-    }
-
-    public function testItReturnsRangeEnd(): void
-    {
-        $item = new DownloadRangeItem(10, 19);
-
-        self::assertSame(19, $item->getEnd());
-    }
-
-    public function testItReturnsRangeLength(): void
-    {
-        $item = new DownloadRangeItem(10, 19);
-
-        self::assertSame(10, $item->getLength());
+        self::assertSame([10, 19, 10], [$item->getStart(), $item->getEnd(), $item->getLength()]);
     }
 
     public function testItReturnsOneForSingleByteRange(): void

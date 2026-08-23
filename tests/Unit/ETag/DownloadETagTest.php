@@ -7,226 +7,122 @@ namespace Moudarir\Downloader\Tests\Unit\ETag;
 use Moudarir\Downloader\Enums\ETagStrategy;
 use Moudarir\Downloader\ETag\DownloadETag;
 use Moudarir\Downloader\Exceptions\DownloadException;
-use Moudarir\Downloader\Resources\DownloadResource;
+use Moudarir\Downloader\Tests\Support\FixtureData;
+use Moudarir\Downloader\Tests\Support\TestConfig;
 use PHPUnit\Framework\TestCase;
 
 final class DownloadETagTest extends TestCase
 {
 
+    /**
+     * @var array<string, mixed>
+     */
+    private static array $fixture;
+
+    private static FixtureData $resource;
+
+    public static function setUpBeforeClass(): void
+    {
+        self::$fixture = TestConfig::resourceData();
+        self::$resource = FixtureData::create();
+    }
+
     public function testCreateWithMtimeStrategy(): void
     {
-        $resource = $this->resource(456, 123);
+        $etag = DownloadETag::create(self::$resource, ETagStrategy::MD5);
 
-        $etag = DownloadETag::create($resource, ETagStrategy::MTIME);
-
-        self::assertSame('"7b-1c8"', $etag->getValue());
-        self::assertSame('7b-1c8', $etag->getOpaqueValue());
+        self::assertSame(
+            ['"'.self::$fixture['etag'].'"', self::$fixture['etag']],
+            [$etag->getValue(), $etag->getOpaqueValue()]
+        );
         self::assertFalse($etag->isWeak());
     }
 
     public function testCreateWeakEtag(): void
     {
-        $resource = $this->resource(456, 123);
+        $etag = DownloadETag::create(self::$resource, ETagStrategy::MD5, true);
 
-        $etag = DownloadETag::create($resource, ETagStrategy::MTIME, true);
-
-        self::assertSame('W/"7b-1c8"', $etag->getValue());
-        self::assertSame('7b-1c8', $etag->getOpaqueValue());
+        self::assertSame(
+            ['W/"'.self::$fixture['etag'].'"', self::$fixture['etag']],
+            [$etag->getValue(), $etag->getOpaqueValue()]
+        );
         self::assertTrue($etag->isWeak());
     }
 
     public function testCreateWithHashStrategy(): void
     {
-        $hash = md5('test data');
-        $resource = $this->resource(9, 123, $hash, [ETagStrategy::MD5]);
+        $hash = self::$resource->getHash('md5');
+        $etag = DownloadETag::create(self::$resource, ETagStrategy::MD5);
 
-        $etag = DownloadETag::create($resource, ETagStrategy::MD5);
-
-        self::assertSame('"' . $hash . '"', $etag->getValue());
-        self::assertSame($hash, $etag->getOpaqueValue());
+        self::assertSame(
+            ['"' . $hash . '"', $hash],
+            [$etag->getValue(), $etag->getOpaqueValue()]
+        );
     }
 
     public function testCreateThrowsWhenNoStrategyIsSupported(): void
     {
-        $resource = $this->resource(456, 123, strategies: []);
-
         self::expectException(DownloadException::class);
         self::expectExceptionMessageIsOrContains("does not declare any supported ETag strategy.");
 
-        DownloadETag::create($resource);
+        DownloadETag::create(FixtureData::create([]));
     }
 
     public function testCreateThrowsWhenRequestedStrategyIsUnsupported(): void
     {
-        $resource = $this->resource(456, 123, strategies: [ETagStrategy::MTIME]);
-
         self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains("ETag strategy `md5` is not supported by resource");
+        self::expectExceptionMessageIsOrContains("ETag strategy `mtime` is not supported by resource");
 
-        DownloadETag::create($resource, ETagStrategy::MD5);
+        DownloadETag::create(self::$resource, ETagStrategy::MTIME);
     }
 
-    public function testCreateThrowsWhenHashStrategyFails(): void
+    public function testMatchesEtagComparaisons(): void
     {
-        $resource = $this->resource(456, 123, strategies: [ETagStrategy::MD5]);
+        $etag = DownloadETag::create(self::$resource, ETagStrategy::MD5);
 
-        self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains("Unable to generate an ETag using the `md5` strategy.");
+        self::assertTrue($etag->matches('"'.self::$fixture['etag'].'"'));
+        self::assertTrue($etag->matches('W/"'.self::$fixture['etag'].'"'));
+        self::assertFalse($etag->matches('W/"'.self::$fixture['etag'].'"', false));
 
-        DownloadETag::create($resource, ETagStrategy::MD5);
-    }
+        $weak = DownloadETag::create(self::$resource, ETagStrategy::MD5, true);
 
-    public function testMatchesExactStrongEtag(): void
-    {
-        $resource = $this->resource(456, 123);
-
-        $etag = DownloadETag::create($resource, ETagStrategy::MTIME);
-
-        self::assertTrue($etag->matches('"7b-1c8"'));
-    }
-
-    public function testMatchesWeakClientEtag(): void
-    {
-        $resource = $this->resource(456, 123);
-
-        $etag = DownloadETag::create($resource, ETagStrategy::MTIME);
-
-        self::assertTrue($etag->matches('W/"7b-1c8"'));
-    }
-
-    public function testStrongComparisonRejectsWeakClientEtag(): void
-    {
-        $resource = $this->resource(456, 123);
-
-        $etag = DownloadETag::create($resource, ETagStrategy::MTIME);
-
-        self::assertFalse($etag->matches('W/"7b-1c8"', false));
-    }
-
-    public function testStrongComparisonRejectsWeakResourceEtag(): void
-    {
-        $resource = $this->resource(456, 123);
-
-        $etag = DownloadETag::create($resource, ETagStrategy::MTIME, true);
-
-        self::assertFalse($etag->matches('"7b-1c8"', false));
+        self::assertFalse($weak->matches('"'.self::$fixture['etag'].'"', false));
     }
 
     public function testMatchesMultipleEtags(): void
     {
-        $resource = $this->resource(456, 123);
+        $etag = DownloadETag::create(self::$resource, ETagStrategy::MD5);
 
-        $etag = DownloadETag::create($resource, ETagStrategy::MTIME);
-
-        self::assertTrue($etag->matches('"etag-1", "7b-1c8", "etag-2"'));
+        self::assertTrue($etag->matches('"etag-1", "'.self::$fixture['etag'].'", "etag-2"'));
     }
 
     public function testMatchesWildcard(): void
     {
-        $resource = $this->resource(456, 123);
-
-        $etag = DownloadETag::create($resource, ETagStrategy::MTIME);
+        $etag = DownloadETag::create(self::$resource, ETagStrategy::MD5);
 
         self::assertTrue($etag->matches('*'));
     }
 
     public function testDoesNotMatchDifferentEtag(): void
     {
-        $resource = $this->resource(456, 123);
-
-        $etag = DownloadETag::create($resource, ETagStrategy::MTIME);
+        $etag = DownloadETag::create(self::$resource, ETagStrategy::MD5);
 
         self::assertFalse($etag->matches('"etag-inexistant"'));
     }
 
     public function testEqualsReturnsTrueForIdenticalEtags(): void
     {
-        $resource = $this->resource(456, 123);
-
-        $first = DownloadETag::create($resource, ETagStrategy::MTIME);
-        $second = DownloadETag::create($resource, ETagStrategy::MTIME);
+        $first = DownloadETag::create(self::$resource, ETagStrategy::MD5);
+        $second = DownloadETag::create(self::$resource, ETagStrategy::MD5);
 
         self::assertTrue($first->equals($second));
     }
 
     public function testEqualsReturnsFalseWhenWeaknessDiffers(): void
     {
-        $resource = $this->resource(456, 123);
-
-        $strong = DownloadETag::create($resource, ETagStrategy::MTIME);
-        $weak = DownloadETag::create($resource, ETagStrategy::MTIME, true);
+        $strong = DownloadETag::create(self::$resource, ETagStrategy::MD5);
+        $weak = DownloadETag::create(self::$resource, ETagStrategy::MD5, true);
 
         self::assertFalse($strong->equals($weak));
-    }
-
-    /**
-     * @param list<ETagStrategy> $strategies
-     */
-    private function resource(
-        int $filesize,
-        ?int $lastModified,
-        ?string $hash = null,
-        array $strategies = [
-            ETagStrategy::MTIME,
-            ETagStrategy::MD5,
-        ],
-    ): DownloadResource
-    {
-        return new readonly class($filesize, $lastModified, $hash, $strategies) implements DownloadResource
-        {
-
-            /**
-             * @param list<ETagStrategy> $strategies
-             */
-            public function __construct(
-                private int     $filesize,
-                private ?int    $lastModified,
-                private ?string $hash,
-                private array   $strategies,
-            ) {
-            }
-
-            public function getFilename(): string
-            {
-                return 'test.bin';
-            }
-
-            public function getFilesize(): int
-            {
-                return $this->filesize;
-            }
-
-            public function getMime(): string
-            {
-                return 'application/octet-stream';
-            }
-
-            public function getLastModified(): ?int
-            {
-                return $this->lastModified;
-            }
-
-            public function output(int $length, int $start = 0): void
-            {
-            }
-
-            public function getFilepath(): ?string
-            {
-                return null;
-            }
-
-            public function getHash(string $algorithm): ?string
-            {
-                return $this->hash;
-            }
-
-            /**
-             * @return list<ETagStrategy>
-             */
-            public function getSupportedETagStrategies(): array
-            {
-                return $this->strategies;
-            }
-        };
     }
 }

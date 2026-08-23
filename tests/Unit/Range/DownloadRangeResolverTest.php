@@ -8,7 +8,10 @@ use Moudarir\Downloader\Enums\ETagStrategy;
 use Moudarir\Downloader\ETag\DownloadETag;
 use Moudarir\Downloader\Http\DownloadRequest;
 use Moudarir\Downloader\Range\DownloadRangeResolver;
+use Moudarir\Downloader\Range\DownloadRangeResult;
 use Moudarir\Downloader\Resources\DownloadResource;
+use Moudarir\Downloader\Tests\Support\FixtureData;
+use Moudarir\Downloader\Tests\Support\FixtureFile;
 use PHPUnit\Framework\TestCase;
 
 final class DownloadRangeResolverTest extends TestCase
@@ -18,6 +21,22 @@ final class DownloadRangeResolverTest extends TestCase
      * @var array<string, mixed>
      */
     private array $server;
+
+    private static FixtureFile $resource;
+
+    private static DownloadETag $etag;
+
+    private static int $filesize;
+
+    private static int $lastModified;
+
+    public static function setUpBeforeClass(): void
+    {
+        self::$resource = FixtureFile::create('txt');
+        self::$etag = DownloadETag::create(self::$resource, ETagStrategy::MTIME);
+        self::$filesize = self::$resource->getFilesize();
+        self::$lastModified = self::$resource->getLastModified();
+    }
 
     protected function setUp(): void
     {
@@ -36,10 +55,7 @@ final class DownloadRangeResolverTest extends TestCase
 
     public function testItReturnsFullRangeWhenRangeHeaderIsAbsent(): void
     {
-        $resource = $this->resource();
-        $etag = $this->etag($resource);
-
-        $result = DownloadRangeResolver::create($resource, DownloadRequest::create(), $etag);
+        $result = $this->rangeResult();
 
         self::assertFalse($result->isInvalid());
         self::assertFalse($result->isUnsatisfiable());
@@ -52,19 +68,17 @@ final class DownloadRangeResolverTest extends TestCase
 
         $firstItem = $range->getFirstItem();
 
-        self::assertSame([0, 99, 100], [
-            $firstItem->getStart(), $firstItem->getEnd(), $firstItem->getLength(),
-        ]);
+        self::assertSame(
+            [0, self::$filesize -1, self::$filesize],
+            [$firstItem->getStart(), $firstItem->getEnd(), $firstItem->getLength()]
+        );
     }
 
     public function testItProcessesRangeWhenIfRangeIsAbsent(): void
     {
         $_SERVER['HTTP_RANGE'] = 'bytes=0-9';
 
-        $resource = $this->resource();
-        $etag = $this->etag($resource);
-
-        $result = DownloadRangeResolver::create($resource, DownloadRequest::create(), $etag);
+        $result = $this->rangeResult();
 
         self::assertFalse($result->isInvalid());
         self::assertFalse($result->isUnsatisfiable());
@@ -82,21 +96,17 @@ final class DownloadRangeResolverTest extends TestCase
     public function testItProcessesRangeWhenIfRangeMatchesEtag(): void
     {
         $_SERVER['HTTP_RANGE'] = 'bytes=0-9';
+        $_SERVER['HTTP_IF_RANGE'] = self::$etag->getValue();
 
-        $resource = $this->resource();
-        $etag = $this->etag($resource);
-
-        $_SERVER['HTTP_IF_RANGE'] = $etag->getValue();
-
-        $result = DownloadRangeResolver::create($resource, DownloadRequest::create(), $etag);
+        $result = $this->rangeResult();
 
         self::assertFalse($result->isInvalid());
         self::assertFalse($result->isUnsatisfiable());
 
         $range = $result->getRange();
-        $firstItem = $range->getFirstItem();
-
         self::assertNotNull($range);
+
+        $firstItem = $range->getFirstItem();
         self::assertTrue($range->isPartial());
         self::assertSame([0, 9], [$firstItem->getStart(), $firstItem->getEnd()]);
     }
@@ -106,63 +116,51 @@ final class DownloadRangeResolverTest extends TestCase
         $_SERVER['HTTP_RANGE'] = 'bytes=0-9';
         $_SERVER['HTTP_IF_RANGE'] = '"etag-inexistant"';
 
-        $resource = $this->resource();
-        $etag = $this->etag($resource);
-
-        $result = DownloadRangeResolver::create($resource, DownloadRequest::create(), $etag);
+        $result = $this->rangeResult();
 
         self::assertFalse($result->isInvalid());
         self::assertFalse($result->isUnsatisfiable());
 
         $range = $result->getRange();
-        $firstItem = $range->getFirstItem();
-
         self::assertNotNull($range);
+
+        $firstItem = $range->getFirstItem();
         self::assertFalse($range->isPartial());
-        self::assertSame([0, 99], [$firstItem->getStart(), $firstItem->getEnd()]);
+        self::assertSame([0, self::$filesize -1], [$firstItem->getStart(), $firstItem->getEnd()]);
     }
 
     public function testItReturnsFullRangeWhenIfRangeUsesWeakEtag(): void
     {
         $_SERVER['HTTP_RANGE'] = 'bytes=0-9';
+        $_SERVER['HTTP_IF_RANGE'] = 'W/' . self::$etag->getValue();
 
-        $resource = $this->resource();
-        $etag = $this->etag($resource);
-
-        $_SERVER['HTTP_IF_RANGE'] = 'W/' . $etag->getValue();
-
-        $result = DownloadRangeResolver::create($resource, DownloadRequest::create(), $etag);
+        $result = $this->rangeResult();
 
         self::assertFalse($result->isInvalid());
         self::assertFalse($result->isUnsatisfiable());
 
         $range = $result->getRange();
-        $firstItem = $range->getFirstItem();
-
         self::assertNotNull($range);
+
+        $firstItem = $range->getFirstItem();
         self::assertFalse($range->isPartial());
-        self::assertSame([0, 99], [$firstItem->getStart(), $firstItem->getEnd()]);
+        self::assertSame([0, self::$filesize -1], [$firstItem->getStart(), $firstItem->getEnd()]);
     }
 
     public function testItProcessesRangeWhenIfRangeDateMatchesLastModified(): void
     {
         $_SERVER['HTTP_RANGE'] = 'bytes=0-9';
+        $_SERVER['HTTP_IF_RANGE'] = $this->httpDate(self::$lastModified);
 
-        $lastModified = 1000;
-        $resource = $this->resource($lastModified);
-        $etag = $this->etag($resource);
-
-        $_SERVER['HTTP_IF_RANGE'] = $this->httpDate($lastModified);
-
-        $result = DownloadRangeResolver::create($resource, DownloadRequest::create(), $etag,);
+        $result = $this->rangeResult();
 
         self::assertFalse($result->isInvalid());
         self::assertFalse($result->isUnsatisfiable());
 
         $range = $result->getRange();
-        $firstItem = $range->getFirstItem();
-
         self::assertNotNull($range);
+
+        $firstItem = $range->getFirstItem();
         self::assertTrue($range->isPartial());
         self::assertSame([0, 9], [$firstItem->getStart(), $firstItem->getEnd()]);
     }
@@ -170,23 +168,19 @@ final class DownloadRangeResolverTest extends TestCase
     public function testItReturnsFullRangeWhenIfRangeDateDiffersFromLastModified(): void
     {
         $_SERVER['HTTP_RANGE'] = 'bytes=0-9';
+        $_SERVER['HTTP_IF_RANGE'] = $this->httpDate(self::$lastModified - 1);
 
-        $resource = $this->resource();
-        $etag = $this->etag($resource);
-
-        $_SERVER['HTTP_IF_RANGE'] = $this->httpDate(999);
-
-        $result = DownloadRangeResolver::create($resource, DownloadRequest::create(), $etag);
+        $result = $this->rangeResult();
 
         self::assertFalse($result->isInvalid());
         self::assertFalse($result->isUnsatisfiable());
 
         $range = $result->getRange();
-        $firstItem = $range->getFirstItem();
-
         self::assertNotNull($range);
+
+        $firstItem = $range->getFirstItem();
         self::assertFalse($range->isPartial());
-        self::assertSame([0, 99], [$firstItem->getStart(), $firstItem->getEnd()]);
+        self::assertSame([0, self::$filesize -1], [$firstItem->getStart(), $firstItem->getEnd()]);
     }
 
     public function testItReturnsFullRangeWhenIfRangeDateIsInvalid(): void
@@ -194,20 +188,17 @@ final class DownloadRangeResolverTest extends TestCase
         $_SERVER['HTTP_RANGE'] = 'bytes=0-9';
         $_SERVER['HTTP_IF_RANGE'] = 'invalid-date';
 
-        $resource = $this->resource();
-        $etag = $this->etag($resource);
-
-        $result = DownloadRangeResolver::create($resource, DownloadRequest::create(), $etag);
+        $result = $this->rangeResult();
 
         self::assertFalse($result->isInvalid());
         self::assertFalse($result->isUnsatisfiable());
 
         $range = $result->getRange();
-        $firstItem = $range->getFirstItem();
-
         self::assertNotNull($range);
+
+        $firstItem = $range->getFirstItem();
         self::assertFalse($range->isPartial());
-        self::assertSame([0, 99], [$firstItem->getStart(), $firstItem->getEnd()]);
+        self::assertSame([0, self::$filesize -1], [$firstItem->getStart(), $firstItem->getEnd()]);
     }
 
     public function testItReturnsFullRangeWhenIfRangeDateIsPresentButLastModifiedIsUnavailable(): void
@@ -215,32 +206,26 @@ final class DownloadRangeResolverTest extends TestCase
         $_SERVER['HTTP_RANGE'] = 'bytes=0-9';
         $_SERVER['HTTP_IF_RANGE'] = $this->httpDate(1000);
 
-        $resource = $this->resource(null);
-        $etag = $this->etag($resource);
-
-        $result = DownloadRangeResolver::create($resource, DownloadRequest::create(), $etag);
+        $resource = FixtureData::create();
+        $result = $this->rangeResult($resource, DownloadETag::create($resource, ETagStrategy::MD5));
 
         self::assertFalse($result->isInvalid());
         self::assertFalse($result->isUnsatisfiable());
 
         $range = $result->getRange();
-        $firstItem = $range->getFirstItem();
-
         self::assertNotNull($range);
+
+        $firstItem = $range->getFirstItem();
         self::assertFalse($range->isPartial());
-        self::assertSame([0, 99], [$firstItem->getStart(), $firstItem->getEnd()]);
+        self::assertSame([0, $resource->getFilesize() - 1], [$firstItem->getStart(), $firstItem->getEnd()]);
     }
 
     public function testItSupportsMultipleRangesWhenIfRangeMatches(): void
     {
         $_SERVER['HTTP_RANGE'] = 'bytes=0-9,20-29';
+        $_SERVER['HTTP_IF_RANGE'] = self::$etag->getValue();
 
-        $resource = $this->resource();
-        $etag = $this->etag($resource);
-
-        $_SERVER['HTTP_IF_RANGE'] = $etag->getValue();
-
-        $result = DownloadRangeResolver::create($resource, DownloadRequest::create(), $etag);
+        $result = $this->rangeResult();
 
         self::assertFalse($result->isInvalid());
         self::assertFalse($result->isUnsatisfiable());
@@ -253,58 +238,13 @@ final class DownloadRangeResolverTest extends TestCase
         self::assertNotNull($range->getBoundary());
     }
 
-    private function resource(?int $lastModified = 1000): DownloadResource
+    private function rangeResult(?DownloadResource $resource = null, ?DownloadETag $etag = null): DownloadRangeResult
     {
-        return new readonly class($lastModified) implements DownloadResource
-        {
-            public function __construct(private ?int $lastModified)
-            {
-            }
-
-            public function getFilename(): string
-            {
-                return 'test.bin';
-            }
-
-            public function getFilesize(): int
-            {
-                return 100;
-            }
-
-            public function getMime(): string
-            {
-                return 'application/octet-stream';
-            }
-
-            public function getLastModified(): ?int
-            {
-                return $this->lastModified;
-            }
-
-            public function output(int $length, int $start = 0): void
-            {
-            }
-
-            public function getFilepath(): ?string
-            {
-                return null;
-            }
-
-            public function getHash(string $algorithm): ?string
-            {
-                return null;
-            }
-
-            public function getSupportedETagStrategies(): array
-            {
-                return [ETagStrategy::MTIME];
-            }
-        };
-    }
-
-    private function etag(DownloadResource $resource): DownloadETag
-    {
-        return DownloadETag::create($resource, ETagStrategy::MTIME);
+        return DownloadRangeResolver::create(
+            $resource ?? self::$resource,
+            DownloadRequest::create(),
+                $etag ?? self::$etag
+        );
     }
 
     private function httpDate(int $timestamp): string

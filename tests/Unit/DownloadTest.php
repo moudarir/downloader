@@ -209,7 +209,7 @@ final class DownloadTest extends TestCase
             ETagStrategy::SHA256
         );
 
-        self::assertSame(64, strlen($response->metadata()->etagValue()));
+        self::assertSame(64, strlen($response->metadata()->etagOpaqueValue()));
     }
 
     public function testFromDataSupportsExplicitETagStrategy(): void
@@ -222,13 +222,13 @@ final class DownloadTest extends TestCase
             ETagStrategy::SHA512
         );
 
-        self::assertSame(128, strlen($response->metadata()->etagValue()));
+        self::assertSame(128, strlen($response->metadata()->etagOpaqueValue()));
     }
 
     public function testItReturnsPreconditionResponseWhenIfNoneMatchMatches(): void
     {
         $response = Download::fromData('Hello, World!', 'hello.txt', 'text/plain');
-        $etag = $response->metadata()->etagValue();
+        $etag = $response->metadata()->etagOpaqueValue();
 
         $_SERVER['HTTP_IF_NONE_MATCH'] = '"' . $etag . '"';
 

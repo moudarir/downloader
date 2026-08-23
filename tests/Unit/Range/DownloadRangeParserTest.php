@@ -28,9 +28,7 @@ final class DownloadRangeParserTest extends TestCase
 
         $item = $range->getFirstItem();
 
-        self::assertSame(0, $item->getStart());
-        self::assertSame(9, $item->getEnd());
-        self::assertSame(10, $item->getLength());
+        self::assertSame([0, 9, 10], [$item->getStart(), $item->getEnd(), $item->getLength()]);
 
         self::assertNull($range->getBoundary());
     }
@@ -45,9 +43,7 @@ final class DownloadRangeParserTest extends TestCase
         $item = $result->getRange()?->getFirstItem();
 
         self::assertNotNull($item);
-        self::assertSame(90, $item->getStart());
-        self::assertSame(99, $item->getEnd());
-        self::assertSame(10, $item->getLength());
+        self::assertSame([90, 99, 10], [$item->getStart(), $item->getEnd(), $item->getLength()]);
     }
 
     public function testItParsesASuffixRange(): void
@@ -60,9 +56,7 @@ final class DownloadRangeParserTest extends TestCase
         $item = $result->getRange()?->getFirstItem();
 
         self::assertNotNull($item);
-        self::assertSame(90, $item->getStart());
-        self::assertSame(99, $item->getEnd());
-        self::assertSame(10, $item->getLength());
+        self::assertSame([90, 99, 10], [$item->getStart(), $item->getEnd(), $item->getLength()]);
     }
 
     public function testItLimitsSuffixRangeToFileSize(): void
@@ -75,9 +69,7 @@ final class DownloadRangeParserTest extends TestCase
         $item = $result->getRange()?->getFirstItem();
 
         self::assertNotNull($item);
-        self::assertSame(0, $item->getStart());
-        self::assertSame(99, $item->getEnd());
-        self::assertSame(100, $item->getLength());
+        self::assertSame([0, 99, 100], [$item->getStart(), $item->getEnd(), $item->getLength()]);
     }
 
     public function testItClampsEndToFileSize(): void
@@ -90,8 +82,7 @@ final class DownloadRangeParserTest extends TestCase
         $item = $result->getRange()?->getFirstItem();
 
         self::assertNotNull($item);
-        self::assertSame(90, $item->getStart());
-        self::assertSame(99, $item->getEnd());
+        self::assertSame([90, 99], [$item->getStart(), $item->getEnd()]);
     }
 
     public function testItRejectsMissingBytesUnit(): void
@@ -212,6 +203,17 @@ final class DownloadRangeParserTest extends TestCase
         self::assertSame([0, 19], [$item->getStart(), $item->getEnd()]);
     }
 
+    public function testItDoesNotCreateMultipartRangeAfterRangesAreMerged(): void
+    {
+        $result = DownloadRangeParser::parse('bytes=0-9,5-19', self::FILESIZE);
+
+        $range = $result->getRange();
+
+        self::assertNotNull($range);
+        self::assertFalse($range->isMultipart());
+        self::assertNull($range->getBoundary());
+    }
+
     public function testItSortsRangesBeforeMerging(): void
     {
         $result = DownloadRangeParser::parse('bytes=20-29,0-9', self::FILESIZE);
@@ -242,17 +244,6 @@ final class DownloadRangeParserTest extends TestCase
         self::assertCount(2, $range->getItems());
         self::assertNotNull($boundary);
         self::assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $boundary);
-    }
-
-    public function testItDoesNotCreateMultipartRangeAfterRangesAreMerged(): void
-    {
-        $result = DownloadRangeParser::parse('bytes=0-9,5-19', self::FILESIZE);
-
-        $range = $result->getRange();
-
-        self::assertNotNull($range);
-        self::assertFalse($range->isMultipart());
-        self::assertNull($range->getBoundary());
     }
 
     public function testItAcceptsExactlyTheConfiguredMaximumNumberOfRanges(): void

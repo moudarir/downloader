@@ -10,7 +10,7 @@ use Moudarir\Downloader\ETag\DownloadETag;
 use Moudarir\Downloader\Http\DownloadPreconditionResult;
 use Moudarir\Downloader\Http\DownloadPreconditions;
 use Moudarir\Downloader\Http\DownloadRequest;
-use Moudarir\Downloader\Resources\DownloadResource;
+use Moudarir\Downloader\Tests\Support\FixtureFile;
 use PHPUnit\Framework\TestCase;
 
 final class DownloadPreconditionsTest extends TestCase
@@ -21,7 +21,18 @@ final class DownloadPreconditionsTest extends TestCase
      */
     private array $server;
 
-    private const int LAST_MODIFIED = 1000;
+    private static FixtureFile $resource;
+
+    private static DownloadETag $etag;
+
+    private static int $lastModified;
+
+    public static function setUpBeforeClass(): void
+    {
+        self::$resource = FixtureFile::create('txt');
+        self::$etag = DownloadETag::create(self::$resource, ETagStrategy::MTIME);
+        self::$lastModified = self::$resource->getLastModified();
+    }
 
     protected function setUp(): void
     {
@@ -48,11 +59,8 @@ final class DownloadPreconditionsTest extends TestCase
 
     public function testItProceedWhenIfMatchMatches(): void
     {
-        $etag = $this->etag();
-
-        $_SERVER['HTTP_IF_MATCH'] = $etag->getValue();
-
-        $result = $this->evaluate($etag);
+        $_SERVER['HTTP_IF_MATCH'] = self::$etag->getValue();
+        $result = $this->evaluate();
 
         self::assertTrue($result->isOk());
         self::assertSame(StatusCode::OK, $result->getStatusCode());
@@ -60,11 +68,8 @@ final class DownloadPreconditionsTest extends TestCase
 
     public function testItFailWhenIfMatchDoesNotMatch(): void
     {
-        $etag = $this->etag();
-
         $_SERVER['HTTP_IF_MATCH'] = '"etag-inexistant"';
-
-        $result = $this->evaluate($etag);
+        $result = $this->evaluate();
 
         self::assertFalse($result->isOk());
         self::assertSame(StatusCode::PRECONDITION_FAILED, $result->getStatusCode());
@@ -72,11 +77,8 @@ final class DownloadPreconditionsTest extends TestCase
 
     public function testItProceedWhenIfMatchIsWildcard(): void
     {
-        $etag = $this->etag();
-
         $_SERVER['HTTP_IF_MATCH'] = '*';
-
-        $result = $this->evaluate($etag);
+        $result = $this->evaluate();
 
         self::assertTrue($result->isOk());
         self::assertSame(StatusCode::OK, $result->getStatusCode());
@@ -84,11 +86,8 @@ final class DownloadPreconditionsTest extends TestCase
 
     public function testIfUnmodifiedSinceIsEvaluatedWhenItIsTheOnlyPrecondition(): void
     {
-        $etag = $this->etag();
-
-        $_SERVER['HTTP_IF_UNMODIFIED_SINCE'] = $this->httpDate(1000);
-
-        $result = $this->evaluate($etag);
+        $_SERVER['HTTP_IF_UNMODIFIED_SINCE'] = $this->httpDate(self::$lastModified);
+        $result = $this->evaluate();
 
         self::assertTrue($result->isOk());
         self::assertSame(StatusCode::OK, $result->getStatusCode());
@@ -96,11 +95,8 @@ final class DownloadPreconditionsTest extends TestCase
 
     public function testItFailWhenIfUnmodifiedSinceIsOlderThanLastModified(): void
     {
-        $etag = $this->etag();
-
-        $_SERVER['HTTP_IF_UNMODIFIED_SINCE'] = $this->httpDate(999);
-
-        $result = $this->evaluate($etag);
+        $_SERVER['HTTP_IF_UNMODIFIED_SINCE'] = $this->httpDate(self::$lastModified - 1);
+        $result = $this->evaluate();
 
         self::assertFalse($result->isOk());
         self::assertSame(StatusCode::PRECONDITION_FAILED, $result->getStatusCode());
@@ -108,11 +104,8 @@ final class DownloadPreconditionsTest extends TestCase
 
     public function testItProceedWhenIfUnmodifiedSinceIsNewerThanLastModified(): void
     {
-        $etag = $this->etag();
-
-        $_SERVER['HTTP_IF_UNMODIFIED_SINCE'] = $this->httpDate(1001);
-
-        $result = $this->evaluate($etag);
+        $_SERVER['HTTP_IF_UNMODIFIED_SINCE'] = $this->httpDate(self::$lastModified + 1);
+        $result = $this->evaluate();
 
         self::assertTrue($result->isOk());
         self::assertSame(StatusCode::OK, $result->getStatusCode());
@@ -120,12 +113,9 @@ final class DownloadPreconditionsTest extends TestCase
 
     public function testIfMatchTakesPrecedenceOverIfUnmodifiedSinceWhenIfMatchFails(): void
     {
-        $etag = $this->etag();
-
         $_SERVER['HTTP_IF_MATCH'] = '"etag-inexistant"';
-        $_SERVER['HTTP_IF_UNMODIFIED_SINCE'] = $this->httpDate(1000);
-
-        $result = $this->evaluate($etag);
+        $_SERVER['HTTP_IF_UNMODIFIED_SINCE'] = $this->httpDate(self::$lastModified);
+        $result = $this->evaluate();
 
         self::assertFalse($result->isOk());
         self::assertSame(StatusCode::PRECONDITION_FAILED, $result->getStatusCode());
@@ -133,12 +123,9 @@ final class DownloadPreconditionsTest extends TestCase
 
     public function testIfUnmodifiedSinceIsIgnoredWhenIfMatchSucceeds(): void
     {
-        $etag = $this->etag();
-
-        $_SERVER['HTTP_IF_MATCH'] = $etag->getValue();
-        $_SERVER['HTTP_IF_UNMODIFIED_SINCE'] = $this->httpDate(999);
-
-        $result = $this->evaluate($etag);
+        $_SERVER['HTTP_IF_MATCH'] = self::$etag->getValue();
+        $_SERVER['HTTP_IF_UNMODIFIED_SINCE'] = $this->httpDate(self::$lastModified - 1);
+        $result = $this->evaluate();
 
         self::assertTrue($result->isOk());
         self::assertSame(StatusCode::OK, $result->getStatusCode());
@@ -146,11 +133,8 @@ final class DownloadPreconditionsTest extends TestCase
 
     public function testItReturnNotModifiedWhenIfNoneMatchMatches(): void
     {
-        $etag = $this->etag();
-
-        $_SERVER['HTTP_IF_NONE_MATCH'] = $etag->getValue();
-
-        $result = $this->evaluate($etag);
+        $_SERVER['HTTP_IF_NONE_MATCH'] = self::$etag->getValue();
+        $result = $this->evaluate();
 
         self::assertFalse($result->isOk());
         self::assertSame(StatusCode::NOT_MODIFIED, $result->getStatusCode());
@@ -158,11 +142,8 @@ final class DownloadPreconditionsTest extends TestCase
 
     public function testItProceedWhenIfNoneMatchDoesNotMatch(): void
     {
-        $etag = $this->etag();
-
         $_SERVER['HTTP_IF_NONE_MATCH'] = '"etag-inexistant"';
-
-        $result = $this->evaluate($etag);
+        $result = $this->evaluate();
 
         self::assertTrue($result->isOk());
         self::assertSame(StatusCode::OK, $result->getStatusCode());
@@ -170,11 +151,8 @@ final class DownloadPreconditionsTest extends TestCase
 
     public function testItReturnNotModifiedWhenIfNoneMatchIsWildcard(): void
     {
-        $etag = $this->etag();
-
         $_SERVER['HTTP_IF_NONE_MATCH'] = '*';
-
-        $result = $this->evaluate($etag);
+        $result = $this->evaluate();
 
         self::assertFalse($result->isOk());
         self::assertSame(StatusCode::NOT_MODIFIED, $result->getStatusCode());
@@ -182,11 +160,8 @@ final class DownloadPreconditionsTest extends TestCase
 
     public function testItReturnNotModifiedWhenIfModifiedSinceMatchesLastModified(): void
     {
-        $etag = $this->etag();
-
-        $_SERVER['HTTP_IF_MODIFIED_SINCE'] = $this->httpDate(1000);
-
-        $result = $this->evaluate($etag);
+        $_SERVER['HTTP_IF_MODIFIED_SINCE'] = $this->httpDate(self::$lastModified);
+        $result = $this->evaluate();
 
         self::assertFalse($result->isOk());
         self::assertSame(StatusCode::NOT_MODIFIED, $result->getStatusCode());
@@ -194,11 +169,8 @@ final class DownloadPreconditionsTest extends TestCase
 
     public function testItProceedWhenIfModifiedSinceIsOlderThanLastModified(): void
     {
-        $etag = $this->etag();
-
-        $_SERVER['HTTP_IF_MODIFIED_SINCE'] = $this->httpDate(999);
-
-        $result = $this->evaluate($etag);
+        $_SERVER['HTTP_IF_MODIFIED_SINCE'] = $this->httpDate(self::$lastModified - 1);
+        $result = $this->evaluate();
 
         self::assertTrue($result->isOk());
         self::assertSame(StatusCode::OK, $result->getStatusCode());
@@ -206,11 +178,8 @@ final class DownloadPreconditionsTest extends TestCase
 
     public function testItReturnNotModifiedWhenIfModifiedSinceIsNewerThanLastModified(): void
     {
-        $etag = $this->etag();
-
-        $_SERVER['HTTP_IF_MODIFIED_SINCE'] = $this->httpDate(1001);
-
-        $result = $this->evaluate($etag);
+        $_SERVER['HTTP_IF_MODIFIED_SINCE'] = $this->httpDate(self::$lastModified + 1);
+        $result = $this->evaluate();
 
         self::assertFalse($result->isOk());
         self::assertSame(StatusCode::NOT_MODIFIED, $result->getStatusCode());
@@ -218,12 +187,9 @@ final class DownloadPreconditionsTest extends TestCase
 
     public function testIfNoneMatchTakesPrecedenceOverIfModifiedSinceWhenIfNoneMatchMatches(): void
     {
-        $etag = $this->etag();
-
-        $_SERVER['HTTP_IF_NONE_MATCH'] = $etag->getValue();
-        $_SERVER['HTTP_IF_MODIFIED_SINCE'] = $this->httpDate(999);
-
-        $result = $this->evaluate($etag);
+        $_SERVER['HTTP_IF_NONE_MATCH'] = self::$etag->getValue();
+        $_SERVER['HTTP_IF_MODIFIED_SINCE'] = $this->httpDate(self::$lastModified - 1);
+        $result = $this->evaluate();
 
         self::assertFalse($result->isOk());
         self::assertSame(StatusCode::NOT_MODIFIED, $result->getStatusCode());
@@ -231,12 +197,9 @@ final class DownloadPreconditionsTest extends TestCase
 
     public function testIfModifiedSinceIsIgnoredWhenIfNoneMatchDoesNotMatch(): void
     {
-        $etag = $this->etag();
-
         $_SERVER['HTTP_IF_NONE_MATCH'] = '"etag-inexistant"';
-        $_SERVER['HTTP_IF_MODIFIED_SINCE'] = $this->httpDate(1000);
-
-        $result = $this->evaluate($etag);
+        $_SERVER['HTTP_IF_MODIFIED_SINCE'] = $this->httpDate(self::$lastModified);
+        $result = $this->evaluate();
 
         self::assertTrue($result->isOk());
         self::assertSame(StatusCode::OK, $result->getStatusCode());
@@ -244,12 +207,9 @@ final class DownloadPreconditionsTest extends TestCase
 
     public function testIfMatchAndIfUnmodifiedSinceAreBothSuccessful(): void
     {
-        $etag = $this->etag();
-
-        $_SERVER['HTTP_IF_MATCH'] = $etag->getValue();
-        $_SERVER['HTTP_IF_UNMODIFIED_SINCE'] = $this->httpDate(1000);
-
-        $result = $this->evaluate($etag);
+        $_SERVER['HTTP_IF_MATCH'] = self::$etag->getValue();
+        $_SERVER['HTTP_IF_UNMODIFIED_SINCE'] = $this->httpDate(self::$lastModified);
+        $result = $this->evaluate();
 
         self::assertTrue($result->isOk());
         self::assertSame(StatusCode::OK, $result->getStatusCode());
@@ -258,80 +218,20 @@ final class DownloadPreconditionsTest extends TestCase
     public function testHeadRequestReturnsNotModifiedForMatchingIfNoneMatch(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'HEAD';
-
-        $etag = $this->etag();
-
-        $_SERVER['HTTP_IF_NONE_MATCH'] = $etag->getValue();
-
-        $result = $this->evaluate($etag);
+        $_SERVER['HTTP_IF_NONE_MATCH'] = self::$etag->getValue();
+        $result = $this->evaluate();
 
         self::assertFalse($result->isOk());
         self::assertSame(StatusCode::NOT_MODIFIED, $result->getStatusCode());
     }
 
-    private function evaluate(?DownloadETag $etag = null): DownloadPreconditionResult
+    private function evaluate(): DownloadPreconditionResult
     {
-        $resource = $this->resource(self::LAST_MODIFIED);
-
-        $etag ??= $this->etag();
-
-        $request = DownloadRequest::create();
-
-        return DownloadPreconditions::evaluate($request, $resource, $etag);
-    }
-
-    private function etag(): DownloadETag
-    {
-        return DownloadETag::create($this->resource(1000), ETagStrategy::MTIME);
-    }
-
-    private function resource(int $lastModified): DownloadResource
-    {
-        return new readonly class($lastModified) implements DownloadResource
-        {
-            public function __construct(private int $lastModified)
-            {
-            }
-
-            public function getFilename(): string
-            {
-                return 'test.bin';
-            }
-
-            public function getFilesize(): int
-            {
-                return 100;
-            }
-
-            public function getMime(): string
-            {
-                return 'application/octet-stream';
-            }
-
-            public function getLastModified(): ?int
-            {
-                return $this->lastModified;
-            }
-
-            public function output(int $length, int $start = 0): void
-            {
-            }
-
-            public function getFilepath(): ?string
-            {
-                return null;
-            }
-
-            public function getHash(string $algorithm): ?string
-            {
-                return null;
-            }
-
-            public function getSupportedETagStrategies(): array
-            {
-                return [ETagStrategy::MTIME];
-            }
-        };
+        return DownloadPreconditions::evaluate(
+            DownloadRequest::create(),
+            self::$resource,
+            self::$etag
+        );
     }
 
     private function httpDate(int $timestamp): string

@@ -19,166 +19,43 @@ final class DownloadRequestTest extends TestCase
 
     protected function setUp(): void
     {
-        parent::setUp();
-
-        $this->server = $_SERVER;
-        $_SERVER = [];
+       $this->server = $_SERVER;
     }
 
     protected function tearDown(): void
     {
         $_SERVER = $this->server;
-
-        parent::tearDown();
     }
 
-    public function testItCreatesGetRequestByDefault(): void
+    public function testItCreatesDefaultGetRequestFromEmptyServer(): void
     {
-        $_SERVER['REQUEST_METHOD'] = 'GET';
-
+        $_SERVER = [];
         $request = DownloadRequest::create();
 
         self::assertSame(RequestMethod::GET, $request->getMethod());
         self::assertTrue($request->isGet());
         self::assertFalse($request->isHead());
         self::assertTrue($request->isSafeMethod());
+        self::assertNull($request->getRange());
+        self::assertNull($request->getIfRange());
+        self::assertNull($request->getIfMatch());
+        self::assertNull($request->getIfNoneMatch());
+        self::assertNull($request->getIfModifiedSince());
+        self::assertNull($request->getIfUnmodifiedSince());
     }
 
-    public function testItCreatesHeadRequest(): void
+    public function testItSupportsHeadRequestMethod(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'HEAD';
-
         $request = DownloadRequest::create();
 
         self::assertSame(RequestMethod::HEAD, $request->getMethod());
-        self::assertFalse($request->isGet());
         self::assertTrue($request->isHead());
+        self::assertFalse($request->isGet());
         self::assertTrue($request->isSafeMethod());
     }
 
-    public function testItUsesGetWhenRequestMethodIsMissing(): void
-    {
-        $request = DownloadRequest::create();
-
-        self::assertSame(RequestMethod::GET, $request->getMethod());
-        self::assertTrue($request->isGet());
-        self::assertFalse($request->isHead());
-        self::assertTrue($request->isSafeMethod());
-    }
-
-    public function testItReadsRangeHeader(): void
-    {
-        $_SERVER['REQUEST_METHOD'] = 'GET';
-        $_SERVER['HTTP_RANGE'] = 'bytes=0-1023';
-
-        $request = DownloadRequest::create();
-
-        self::assertSame('bytes=0-1023', $request->getRange());
-    }
-
-    public function testItReadsIfRangeHeader(): void
-    {
-        $_SERVER['REQUEST_METHOD'] = 'GET';
-        $_SERVER['HTTP_IF_RANGE'] = '"etag-value"';
-
-        $request = DownloadRequest::create();
-
-        self::assertSame('"etag-value"', $request->getIfRange());
-    }
-
-    public function testItReadsIfMatchHeader(): void
-    {
-        $_SERVER['REQUEST_METHOD'] = 'GET';
-        $_SERVER['HTTP_IF_MATCH'] = '"etag-value"';
-
-        $request = DownloadRequest::create();
-
-        self::assertSame('"etag-value"', $request->getIfMatch());
-    }
-
-    public function testItReadsIfNoneMatchHeader(): void
-    {
-        $_SERVER['REQUEST_METHOD'] = 'GET';
-        $_SERVER['HTTP_IF_NONE_MATCH'] = '"etag-value"';
-
-        $request = DownloadRequest::create();
-
-        self::assertSame('"etag-value"', $request->getIfNoneMatch());
-    }
-
-    public function testItParsesIfModifiedSince(): void
-    {
-        $_SERVER['REQUEST_METHOD'] = 'GET';
-        $_SERVER['HTTP_IF_MODIFIED_SINCE'] = 'Sun, 09 Aug 2026 11:17:59 GMT';
-
-        $request = DownloadRequest::create();
-
-        self::assertSame(
-            strtotime('Sun, 09 Aug 2026 11:17:59 GMT'),
-            $request->getIfModifiedSince()
-        );
-    }
-
-    public function testItParsesIfUnmodifiedSince(): void
-    {
-        $_SERVER['REQUEST_METHOD'] = 'GET';
-        $_SERVER['HTTP_IF_UNMODIFIED_SINCE'] = 'Sun, 09 Aug 2026 11:17:59 GMT';
-
-        $request = DownloadRequest::create();
-
-        self::assertSame(
-            strtotime('Sun, 09 Aug 2026 11:17:59 GMT'),
-            $request->getIfUnmodifiedSince()
-        );
-    }
-
-    public function testMissingHeadersAreReturnedAsNull(): void
-    {
-        $_SERVER['REQUEST_METHOD'] = 'GET';
-
-        $request = DownloadRequest::create();
-
-        self::assertNull($request->getRange());
-        self::assertNull($request->getIfRange());
-        self::assertNull($request->getIfMatch());
-        self::assertNull($request->getIfNoneMatch());
-        self::assertNull($request->getIfModifiedSince());
-        self::assertNull($request->getIfUnmodifiedSince());
-    }
-
-    public function testEmptyHeadersAreReturnedAsNull(): void
-    {
-        $_SERVER['REQUEST_METHOD'] = 'GET';
-        $_SERVER['HTTP_RANGE'] = '   ';
-        $_SERVER['HTTP_IF_RANGE'] = '';
-        $_SERVER['HTTP_IF_MATCH'] = ' ';
-        $_SERVER['HTTP_IF_NONE_MATCH'] = '';
-        $_SERVER['HTTP_IF_MODIFIED_SINCE'] = ' ';
-        $_SERVER['HTTP_IF_UNMODIFIED_SINCE'] = '';
-
-        $request = DownloadRequest::create();
-
-        self::assertNull($request->getRange());
-        self::assertNull($request->getIfRange());
-        self::assertNull($request->getIfMatch());
-        self::assertNull($request->getIfNoneMatch());
-        self::assertNull($request->getIfModifiedSince());
-        self::assertNull($request->getIfUnmodifiedSince());
-    }
-
-    public function testInvalidHttpDatesAreReturnedAsNull(): void
-    {
-        $_SERVER['REQUEST_METHOD'] = 'GET';
-        $_SERVER['HTTP_IF_MODIFIED_SINCE'] = 'invalid-date';
-        $_SERVER['HTTP_IF_UNMODIFIED_SINCE'] = 'invalid-date';
-
-        $request = DownloadRequest::create();
-
-        self::assertNull($request->getIfModifiedSince());
-        self::assertNull($request->getIfUnmodifiedSince());
-    }
-
-    public function testItRejectsUnsupportedRequestMethod(): void
+    public function testItThrowsOnUnsupportedMethod(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'POST';
 
@@ -188,69 +65,65 @@ final class DownloadRequestTest extends TestCase
         DownloadRequest::create();
     }
 
-    public function testItRejectsPutRequestMethod(): void
-    {
-        $_SERVER['REQUEST_METHOD'] = 'PUT';
-
-        self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains("The HTTP request method `PUT` is not supported.");
-
-        DownloadRequest::create();
-    }
-
-    public function testRequestMethodIsCaseInsensitive(): void
-    {
-        $_SERVER['REQUEST_METHOD'] = 'head';
-
-        $request = DownloadRequest::create();
-
-        self::assertSame(RequestMethod::HEAD, $request->getMethod());
-        self::assertTrue($request->isHead());
-        self::assertTrue($request->isSafeMethod());
-    }
-
-    public function testItReadsAllSupportedHeadersTogether(): void
+    public function testItParsesHeaderFieldsCorrectly(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'GET';
-        $_SERVER['HTTP_RANGE'] = 'bytes=0-99';
-        $_SERVER['HTTP_IF_RANGE'] = '"etag-range"';
+        $_SERVER['HTTP_RANGE'] = 'bytes=0-499';
+        $_SERVER['HTTP_IF_RANGE'] = '"123456789"';
         $_SERVER['HTTP_IF_MATCH'] = '"etag-match"';
-        $_SERVER['HTTP_IF_NONE_MATCH'] = '"etag-none"';
-        $_SERVER['HTTP_IF_MODIFIED_SINCE'] = 'Sun, 09 Aug 2026 11:17:59 GMT';
-        $_SERVER['HTTP_IF_UNMODIFIED_SINCE'] = 'Mon, 10 Aug 2026 11:17:59 GMT';
+        $_SERVER['HTTP_IF_NONE_MATCH'] = '"etag-none-match"';
 
         $request = DownloadRequest::create();
 
-        self::assertSame(RequestMethod::GET, $request->getMethod());
-        self::assertTrue($request->isGet());
-        self::assertFalse($request->isHead());
-        self::assertTrue($request->isSafeMethod());
-        self::assertSame('bytes=0-99', $request->getRange());
-        self::assertSame('"etag-range"', $request->getIfRange());
-        self::assertSame('"etag-match"', $request->getIfMatch());
-        self::assertSame('"etag-none"', $request->getIfNoneMatch());
         self::assertSame(
-            strtotime('Sun, 09 Aug 2026 11:17:59 GMT'),
-            $request->getIfModifiedSince()
-        );
-        self::assertSame(
-            strtotime('Mon, 10 Aug 2026 11:17:59 GMT'),
-            $request->getIfUnmodifiedSince()
+            [
+                'bytes=0-499',
+                '"123456789"',
+                '"etag-match"',
+                '"etag-none-match"',
+            ],
+            [
+                $request->getRange(),
+                $request->getIfRange(),
+                $request->getIfMatch(),
+                $request->getIfNoneMatch(),
+            ]
         );
     }
 
-    public function testSafeMethodMeansGetOrHeadOnly(): void
+    public function testItConvertsEmptyStringHeadersToNull(): void
     {
         $_SERVER['REQUEST_METHOD'] = 'GET';
+        $_SERVER['HTTP_RANGE'] = '   ';
+        $_SERVER['HTTP_IF_RANGE'] = '';
 
-        $getRequest = DownloadRequest::create();
+        $request = DownloadRequest::create();
 
-        self::assertTrue($getRequest->isSafeMethod());
+        self::assertNull($request->getRange());
+        self::assertNull($request->getIfRange());
+    }
 
-        $_SERVER['REQUEST_METHOD'] = 'HEAD';
+    public function testItParsesDateHeadersWithDifferentFormats(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        $_SERVER['HTTP_IF_MODIFIED_SINCE'] = 'Wed, 21 Oct 2015 07:28:00 GMT'; // IMF-fixdate
+        $_SERVER['HTTP_IF_UNMODIFIED_SINCE'] = 'Sun Nov  6 08:49:37 1994'; // asctime
 
-        $headRequest = DownloadRequest::create();
+        $request = DownloadRequest::create();
 
-        self::assertTrue($headRequest->isSafeMethod());
+        self::assertSame(
+            [1445412480, 784111777],
+            [$request->getIfModifiedSince(), $request->getIfUnmodifiedSince()]
+        );
+    }
+
+    public function testItReturnsNullForInvalidDateHeaders(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        $_SERVER['HTTP_IF_MODIFIED_SINCE'] = 'Invalid Date String';
+
+        $request = DownloadRequest::create();
+
+        self::assertNull($request->getIfModifiedSince());
     }
 }

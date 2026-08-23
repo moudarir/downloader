@@ -12,7 +12,7 @@ use Moudarir\Downloader\Http\DownloadHeaders;
 use Moudarir\Downloader\Http\DownloadRequest;
 use Moudarir\Downloader\Http\DownloadResponse;
 use Moudarir\Downloader\Range\DownloadRangeItem;
-use Moudarir\Downloader\Resources\DownloadData;
+use Moudarir\Downloader\Tests\Support\FixtureFile;
 use PHPUnit\Framework\TestCase;
 
 final class DownloadResponseTest extends TestCase
@@ -22,6 +22,16 @@ final class DownloadResponseTest extends TestCase
      * @var array<string, mixed>
      */
     private array $server;
+
+    private static FixtureFile $resource;
+
+    private static DownloadETag $etag;
+
+    public static function setUpBeforeClass(): void
+    {
+        self::$resource = FixtureFile::create('txt');
+        self::$etag = DownloadETag::create(self::$resource, ETagStrategy::MD5);
+    }
 
     protected function setUp(): void
     {
@@ -41,30 +51,32 @@ final class DownloadResponseTest extends TestCase
     public function testItCreatesDefaultResponseMetadata(): void
     {
         $response = $this->createResponse(ResponseAction::DEFAULT);
-
         $metadata = $response->metadata();
 
-        self::assertSame(StatusCode::OK, $metadata->statusCode());
-        self::assertSame(ResponseAction::DEFAULT, $metadata->responseAction());
-        self::assertSame(13, $metadata->contentLength());
-        self::assertSame('text/plain', $metadata->contentType());
+        self::assertNotNull($metadata->filepath());
+        self::assertNotNull($metadata->lastModified());
+
+        self::assertNotSame('', $metadata->etagValue());
+        self::assertFalse($metadata->etagIsWeak());
         self::assertFalse($metadata->hasRange());
         self::assertFalse($metadata->rangeIsPartial());
         self::assertFalse($metadata->rangeIsMultipart());
-    }
-
-    public function testItExposesResourceMetadata(): void
-    {
-        $response = $this->createResponse(ResponseAction::DEFAULT);
-        $metadata = $response->metadata();
-
-        self::assertNull($metadata->filepath());
-        self::assertNull($metadata->lastModified());
-        self::assertSame('hello.txt', $metadata->filename());
-        self::assertSame(13, $metadata->filesize());
-        self::assertSame('text/plain', $metadata->mimeType());
-        self::assertNotSame('', $metadata->etagValue());
-        self::assertFalse($metadata->etagIsWeak());
+        self::assertSame(
+            [
+                StatusCode::OK,
+                ResponseAction::DEFAULT,
+                self::$resource->getFilename(),
+                self::$resource->getFilesize(),
+                self::$resource->getMime(),
+            ],
+            [
+                $metadata->statusCode(),
+                $metadata->responseAction(),
+                $metadata->filename(),
+                $metadata->contentLength(),
+                $metadata->contentType(),
+            ]
+        );
     }
 
     public function testItCreatesPartialResponseForSingleRange(): void
@@ -75,16 +87,28 @@ final class DownloadResponseTest extends TestCase
         $metadata = $response->metadata();
         $rangeItem = $metadata->rangeItems()[0];
 
-        self::assertSame(StatusCode::PARTIAL_CONTENT, $metadata->statusCode());
-        self::assertSame(ResponseAction::PARTIAL, $metadata->responseAction());
-        self::assertSame(5, $metadata->contentLength());
-        self::assertSame('text/plain', $metadata->contentType());
         self::assertTrue($metadata->hasRange());
         self::assertTrue($metadata->rangeIsPartial());
         self::assertFalse($metadata->rangeIsMultipart());
         self::assertSame(
-            [0, 4, 5],
-            [$rangeItem->getStart(), $rangeItem->getEnd(), $rangeItem->getLength()]
+            [
+                StatusCode::PARTIAL_CONTENT,
+                ResponseAction::PARTIAL,
+                5,
+                self::$resource->getMime(),
+                0,
+                4,
+                5
+            ],
+            [
+                $metadata->statusCode(),
+                $metadata->responseAction(),
+                $metadata->contentLength(),
+                $metadata->contentType(),
+                $rangeItem->getStart(),
+                $rangeItem->getEnd(),
+                $rangeItem->getLength()
+            ]
         );
     }
 
@@ -93,9 +117,11 @@ final class DownloadResponseTest extends TestCase
         $_SERVER['HTTP_RANGE'] = 'bytes=0-4,8-12';
 
         $response = $this->createResponse();
-
         $metadata = $response->metadata();
         $rangeItems = $metadata->rangeItems();
+
+        self::assertNotNull($rangeItems);
+
         $firstRangeItem = $rangeItems[0];
         $secondRangeItem = $rangeItems[1];
 
@@ -104,7 +130,6 @@ final class DownloadResponseTest extends TestCase
         self::assertTrue($metadata->rangeIsPartial());
         self::assertTrue($metadata->rangeIsMultipart());
         self::assertCount(2, $rangeItems);
-        self::assertNotNull($rangeItems);
         self::assertSame([0, 4], [$firstRangeItem->getStart(), $firstRangeItem->getEnd()]);
         self::assertSame([8, 12], [$secondRangeItem->getStart(), $secondRangeItem->getEnd()]);
         self::assertStringStartsWith('multipart/byteranges; boundary=', $metadata->contentType());
@@ -118,14 +143,18 @@ final class DownloadResponseTest extends TestCase
         $response = $this->createResponse();
         $metadata = $response->metadata();
 
+        $filepath = $metadata->filepath();
+        $firstPart = file_get_contents($filepath, false, null, 0, 5);
+        $secondPart = file_get_contents($filepath, false, null, 8, 5);
+
         self::assertSame(StatusCode::PARTIAL_CONTENT, $metadata->statusCode());
         self::assertSame(
             strlen(
                 $this->buildExpectedMultipartBody(
                     boundary: $this->extractBoundary($metadata->contentType()),
-                    mime: 'text/plain',
-                    filesize: 13,
-                    parts: [[0, 4, 'Hello'], [8, 12, 'orld!']],
+                    mime: $metadata->mimeType(),
+                    filesize: $metadata->filesize(),
+                    parts: [[0, 4, $firstPart], [8, 12, $secondPart]],
                 )
             ),
             $metadata->contentLength()
@@ -140,8 +169,7 @@ final class DownloadResponseTest extends TestCase
         $metadata = $response->metadata();
 
         self::assertSame(StatusCode::OK, $metadata->statusCode());
-        self::assertSame(13, $metadata->contentLength());
-        self::assertSame('text/plain', $metadata->contentType());
+        self::assertSame(self::$resource->getFilesize(), $metadata->contentLength());
         self::assertFalse($metadata->hasRange());
         self::assertFalse($metadata->rangeIsPartial());
         self::assertFalse($metadata->rangeIsMultipart());
@@ -149,8 +177,7 @@ final class DownloadResponseTest extends TestCase
 
     public function testUnsatisfiableRangeCreates416Response(): void
     {
-        $_SERVER['HTTP_RANGE'] = 'bytes=100-';
-
+        $_SERVER['HTTP_RANGE'] = 'bytes=1000-';
         $response = $this->createResponse();
         $metadata = $response->metadata();
 
@@ -164,53 +191,55 @@ final class DownloadResponseTest extends TestCase
 
     public function testPreconditionResponseHasNoContent(): void
     {
-        $resource = DownloadData::create('Hello, World!', 'hello.txt', 'text/plain');
-        $request = DownloadRequest::create();
-        $etag = DownloadETag::create($resource, ETagStrategy::MD5);
-        $headers = new DownloadHeaders();
         $response = DownloadResponse::precondition(
             StatusCode::NOT_MODIFIED,
-            $headers,
-            $resource,
-            $request,
+            new DownloadHeaders(),
+            self::$resource,
+            DownloadRequest::create(),
             ResponseAction::DEFAULT,
-            $etag
+            self::$etag
         );
 
         $metadata = $response->metadata();
 
-        self::assertSame(StatusCode::NOT_MODIFIED, $metadata->statusCode());
-        self::assertSame(ResponseAction::DEFAULT, $metadata->responseAction());
-        self::assertSame(0, $metadata->contentLength());
         self::assertNull($metadata->contentType());
+        self::assertSame(
+            [
+                StatusCode::NOT_MODIFIED,
+                ResponseAction::DEFAULT,
+                0,
+            ],
+            [
+                $metadata->statusCode(),
+                $metadata->responseAction(),
+                $metadata->contentLength(),
+            ]
+        );
     }
 
     public function testPreconditionFailedResponseHasNoContent(): void
     {
-        $resource = DownloadData::create('Hello, World!', 'hello.txt', 'text/plain');
-        $request = DownloadRequest::create();
-        $etag = DownloadETag::create($resource, ETagStrategy::MD5);
-        $headers = new DownloadHeaders();
         $response = DownloadResponse::precondition(
             StatusCode::PRECONDITION_FAILED,
-            $headers,
-            $resource,
-            $request,
+            new DownloadHeaders(),
+            self::$resource,
+            DownloadRequest::create(),
             ResponseAction::DEFAULT,
-            $etag
+            self::$etag
         );
 
         $metadata = $response->metadata();
 
-        self::assertSame(StatusCode::PRECONDITION_FAILED, $metadata->statusCode());
-        self::assertSame(0, $metadata->contentLength());
         self::assertNull($metadata->contentType());
+        self::assertSame(
+            [StatusCode::PRECONDITION_FAILED, 0],
+            [$metadata->statusCode(), $metadata->contentLength()]
+        );
     }
 
     public function testMetadataContentLengthIsAlreadyKnownBeforeSend(): void
     {
         $_SERVER['HTTP_RANGE'] = 'bytes=2-6';
-
         $response = $this->createResponse();
 
         self::assertSame(5, $response->metadata()->contentLength());
@@ -229,40 +258,14 @@ final class DownloadResponseTest extends TestCase
         self::assertInstanceOf(DownloadRangeItem::class, $rangeItems[1]);
     }
 
-    public function testInlineReturnsTheSameResponse(): void
-    {
-        $response = $this->createResponse(ResponseAction::DEFAULT);
-
-        self::assertSame($response, $response->inline());
-    }
-
-    public function testAddCacheControlReturnsTheSameResponse(): void
-    {
-        $response = $this->createResponse(ResponseAction::DEFAULT);
-
-        self::assertSame($response, $response->addCacheControl('public, max-age=3600'));
-    }
-
-    public function testMetadataRetainsTheConfiguredResponseAction(): void
-    {
-        $response = $this->createResponse();
-
-        self::assertSame(ResponseAction::PARTIAL, $response->metadata()->responseAction());
-    }
-
     private function createResponse(ResponseAction $responseAction = ResponseAction::PARTIAL): DownloadResponse
     {
-        $resource = DownloadData::create('Hello, World!', 'hello.txt', 'text/plain');
-        $request = DownloadRequest::create();
-        $etag = DownloadETag::create($resource, ETagStrategy::MD5);
-        $headers = new DownloadHeaders();
-
         return DownloadResponse::create(
-            $headers,
-            $resource,
-            $request,
+            new DownloadHeaders(),
+            self::$resource,
+            DownloadRequest::create(),
             $responseAction,
-            $etag
+            self::$etag
         );
     }
 

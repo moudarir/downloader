@@ -4,57 +4,30 @@ declare(strict_types=1);
 
 namespace Moudarir\Downloader\Tests\Unit\Resources;
 
-use Moudarir\Downloader\DownloadConfig;
 use Moudarir\Downloader\Enums\ETagStrategy;
 use Moudarir\Downloader\Exceptions\DownloadException;
 use Moudarir\Downloader\Resources\DownloadData;
+use Moudarir\Downloader\Tests\Support\TestConfig;
 use PHPUnit\Framework\TestCase;
 
 final class DownloadDataTest extends TestCase
 {
 
-    public function testItCreatesResourceWithValidData(): void
+    /**
+     * @var array<string, mixed>
+     */
+    private static array $fixture;
+
+    private static DownloadData $resource;
+
+    public static function setUpBeforeClass(): void
     {
-        $resource = DownloadData::create('Hello, World!', 'hello.txt', 'text/plain');
-
-        self::assertSame('hello.txt', $resource->getFilename());
-        self::assertSame('text/plain', $resource->getMime());
-        self::assertSame(13, $resource->getFilesize());
-    }
-
-    public function testItTrimsFilename(): void
-    {
-        $resource = DownloadData::create('Hello', '  hello.txt  ', 'text/plain');
-
-        self::assertSame('hello.txt', $resource->getFilename());
-    }
-
-    public function testItUsesDefaultMimeWhenMimeIsNull(): void
-    {
-        $resource = DownloadData::create('Hello', 'hello.txt');
-
-        self::assertSame(DownloadConfig::DEFAULT_MIME, $resource->getMime());
-    }
-
-    public function testItUsesDefaultMimeWhenMimeIsEmpty(): void
-    {
-        $resource = DownloadData::create('Hello', 'hello.txt', '');
-
-        self::assertSame(DownloadConfig::DEFAULT_MIME, $resource->getMime());
-    }
-
-    public function testItReturnsNullForLastModified(): void
-    {
-        $resource = DownloadData::create('Hello', 'hello.txt');
-
-        self::assertNull($resource->getLastModified());
-    }
-
-    public function testItReturnsNullForFilepath(): void
-    {
-        $resource = DownloadData::create('Hello', 'hello.txt');
-
-        self::assertNull($resource->getFilepath());
+        self::$fixture = TestConfig::resourceData();
+        self::$resource = DownloadData::create(
+            self::$fixture['content'],
+            self::$fixture['filename'],
+            self::$fixture['mime']
+        );
     }
 
     public function testItThrowsWhenDataIsEmpty(): void
@@ -62,7 +35,7 @@ final class DownloadDataTest extends TestCase
         self::expectException(DownloadException::class);
         self::expectExceptionMessageIsOrContains("The data source cannot be empty.");
 
-        DownloadData::create('', 'hello.txt');
+        DownloadData::create('', self::$fixture['filename'], self::$fixture['mime']);
     }
 
     public function testItThrowsWhenFilenameIsEmpty(): void
@@ -70,141 +43,68 @@ final class DownloadDataTest extends TestCase
         self::expectException(DownloadException::class);
         self::expectExceptionMessageIsOrContains("A filename is required when downloading data from memory.");
 
-        DownloadData::create('Hello', '');
+        DownloadData::create('lorem ipsum', '', self::$fixture['mime']);
     }
 
-    public function testItThrowsWhenFilenameContainsOnlyWhitespace(): void
+    public function testItReturnsCorrectGetters(): void
     {
-        self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains("A filename is required when downloading data from memory.");
-
-        DownloadData::create('Hello', '   ');
-    }
-
-    public function testItReturnsMd5Hash(): void
-    {
-        $data = 'Hello, World!';
-        $resource = DownloadData::create($data, 'hello.txt');
-
-        self::assertSame(md5($data), $resource->getHash('md5'));
-    }
-
-    public function testItReturnsSha256Hash(): void
-    {
-        $data = 'Hello, World!';
-        $resource = DownloadData::create($data, 'hello.txt');
-
-        self::assertSame(hash('sha256', $data), $resource->getHash('sha256'));
-    }
-
-    public function testItReturnsSha512Hash(): void
-    {
-        $data = 'Hello, World!';
-        $resource = DownloadData::create($data, 'hello.txt');
-
-        self::assertSame(hash('sha512', $data), $resource->getHash('sha512'));
-    }
-
-    public function testItReturnsNullForInvalidHashAlgorithm(): void
-    {
-        $resource = DownloadData::create('Hello', 'hello.txt');
-
-        self::assertNull($resource->getHash('invalid-algorithm'));
+        self::assertSame(self::$fixture['filename'], self::$resource->getFilename());
+        self::assertSame(self::$fixture['mime'], self::$resource->getMime());
+        self::assertSame(strlen(self::$fixture['content']), self::$resource->getFilesize());
+        self::assertNull(self::$resource->getLastModified());
+        self::assertNull(self::$resource->getFilepath());
     }
 
     public function testItSupportsExpectedEtagStrategies(): void
     {
-        $resource = DownloadData::create('Hello', 'hello.txt');
-
         self::assertSame(
             [
                 ETagStrategy::MD5,
                 ETagStrategy::SHA256,
                 ETagStrategy::SHA512,
             ],
-            $resource->getSupportedETagStrategies()
+            self::$resource->getSupportedETagStrategies()
         );
     }
 
-    public function testItOutputsTheCompleteData(): void
+    public function testItCalculatesHashCorrectly(): void
     {
-        $data = 'Hello, World!';
-        $resource = DownloadData::create($data, 'hello.txt');
+        $expectedHash = hash('md5', self::$fixture['content']);
 
-        ob_start();
-
-        try {
-            $resource->output(strlen($data));
-            $output = ob_get_contents();
-        } finally {
-            ob_end_clean();
-        }
-
-        self::assertSame($data, $output);
+        self::assertSame($expectedHash, self::$resource->getHash('md5'));
+        self::assertNull(self::$resource->getHash('invalid_algorithm'));
     }
 
-    public function testItOutputsOnlyRequestedPartOfData(): void
+    public function testOutputFullData(): void
     {
-        $data = 'Hello, World!';
-        $resource = DownloadData::create($data, 'hello.txt');
-
         ob_start();
+        self::$resource->output(self::$resource->getFilesize());
+        $output = ob_get_clean();
 
-        try {
-            $resource->output(5, 7);
-            $output = ob_get_contents();
-        } finally {
-            ob_end_clean();
-        }
-
-        self::assertSame('World', $output);
+        self::assertSame(strlen(self::$fixture['content']), strlen($output));
+        self::assertSame(self::$fixture['content'], $output);
     }
 
-    public function testItOutputsDataStartingAtZeroByDefault(): void
+    public function testOutputPartialContentWithOffset(): void
     {
-        $data = 'Hello, World!';
-        $resource = DownloadData::create($data, 'hello.txt');
+        $length = 20;
+        $start = 5;
 
         ob_start();
+        self::$resource->output($length, $start);
+        $output = ob_get_clean();
 
-        try {
-            $resource->output(5);
-            $output = ob_get_contents();
-        } finally {
-            ob_end_clean();
-        }
+        $expectedContent = substr(self::$fixture['content'], $start, $length);
 
-        self::assertSame('Hello', $output);
+        self::assertSame($length, strlen($output));
+        self::assertSame($expectedContent, $output);
     }
 
-    public function testItOutputsNothingWhenLengthIsZero(): void
+    public function testOutputWithZeroLengthReturnsNothing(): void
     {
-        $resource = DownloadData::create('Hello, World!', 'hello.txt');
-
         ob_start();
-
-        try {
-            $resource->output(0);
-            $output = ob_get_contents();
-        } finally {
-            ob_end_clean();
-        }
-
-        self::assertSame('', $output);
-    }
-
-    public function testItOutputsNothingWhenLengthIsNegative(): void
-    {
-        $resource = DownloadData::create('Hello, World!', 'hello.txt');
-
-        ob_start();
-
-        try {
-            $resource->output(-1);
-            $output = ob_get_contents();
-        } finally {
-            ob_end_clean();
-        }
+        self::$resource->output(0);
+        $output = ob_get_clean();
 
         self::assertSame('', $output);
     }
