@@ -29,6 +29,7 @@ final class DownloadConfig
         'content-type'        => 'Content-Type',
         'etag'                => 'ETag',
         'last-modified'       => 'Last-Modified',
+        'x-accel-buffering'   => 'X-Accel-Buffering',
         'x-accel-redirect'    => 'X-Accel-Redirect',
         'x-sendfile'          => 'X-Sendfile',
     ];

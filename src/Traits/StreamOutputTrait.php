@@ -8,23 +8,22 @@ use Moudarir\Downloader\DownloadConfig;
 
 trait StreamOutputTrait
 {
+
     /**
-     * Reads a PHP stream resource and outputs it to the client in chunks.
+     * Reads a PHP stream resource and outputs it to the client with optional rate limiting.
      *
      * @param mixed $stream Valid PHP stream resource
      * @param int $length Total bytes to send
      * @param int $start Starting offset byte
+     * @param int $bytesPerSecond Max bandwidth in bytes/sec (0 = unlimited)
      */
-    protected function outputStream(mixed $stream, int $length, int $start = 0): void
+    protected function outputStream(mixed $stream, int $length, int $start = 0, int $bytesPerSecond = 0): void
     {
-        if ($length <= 0) {
+        if ($length <= 0 || !is_resource($stream) || get_resource_type($stream) !== 'stream') {
             return;
         }
 
-        if (!is_resource($stream) || get_resource_type($stream) !== 'stream') {
-            return;
-        }
-
+        $bytesPerSecond = max(0, $bytesPerSecond);
         $meta = stream_get_meta_data($stream);
 
         if ($meta['seekable']) {
@@ -45,6 +44,8 @@ trait StreamOutputTrait
                 break;
             }
 
+            $chunkStartTime = hrtime(true);
+
             $chunkSize = min(DownloadConfig::CHUNK_SIZE, $bytesRemaining);
             $buffer = fread($stream, $chunkSize);
 
@@ -52,12 +53,24 @@ trait StreamOutputTrait
                 break;
             }
 
+            $bytesRead = strlen($buffer);
             echo $buffer;
 
             // Push chunk to network socket to trigger SAPI connection status update
             flush();
 
-            $bytesRemaining -= strlen($buffer);
+            $bytesRemaining -= $bytesRead;
+
+            // Apply rate limiting throttle if configured
+            if ($bytesPerSecond > 0) {
+                $expectedMicroseconds = ($bytesRead / $bytesPerSecond) * 1_000_000;
+                $elapsedMicroseconds = (hrtime(true) - $chunkStartTime) / 1_000;
+                $sleepMicroseconds = (int) ($expectedMicroseconds - $elapsedMicroseconds);
+
+                if ($sleepMicroseconds > 0) {
+                    usleep($sleepMicroseconds);
+                }
+            }
         }
     }
 }

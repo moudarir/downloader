@@ -33,13 +33,19 @@ final readonly class DownloadFile implements DownloadResource
         private int $filesize,
         private string $mime,
         private ?int $lastModified,
+        private ?string $internalUri = null,
     ) {
     }
 
     /**
      * @throws DownloadException
      */
-    public static function create(string $filepath, ?string $filename = null, true|string $mime = ''): self
+    public static function create(
+        string $filepath,
+        ?string $filename = null,
+        true|string $mime = '',
+        ?string $internalUri = null,
+    ): self
     {
         $filepath = CommonHelper::nullIfEmpty($filepath);
 
@@ -61,7 +67,8 @@ final readonly class DownloadFile implements DownloadResource
             $filename,
             $filesize,
             FileHelper::detectMimeType($filepath, $mime),
-            ($lastModified = filemtime($filepath)) === false ? null : $lastModified
+            ($lastModified = filemtime($filepath)) === false ? null : $lastModified,
+            $internalUri
         );
     }
 
@@ -90,6 +97,11 @@ final readonly class DownloadFile implements DownloadResource
         return $this->lastModified;
     }
 
+    public function getInternalUri(): ?string
+    {
+        return $this->internalUri;
+    }
+
     public function getHash(string $algorithm): ?string
     {
         try {
@@ -99,14 +111,14 @@ final readonly class DownloadFile implements DownloadResource
         }
     }
 
-    public function output(int $length, int $start = 0): void
+    public function output(int $length, int $start = 0, int $bytesPerSecond = 0): void
     {
         if (($handle = fopen($this->filepath, 'rb')) === false) {
             return;
         }
 
         try {
-            $this->outputStream($handle, $length, $start);
+            $this->outputStream($handle, $length, $start, $bytesPerSecond);
         } finally {
             fclose($handle);
         }

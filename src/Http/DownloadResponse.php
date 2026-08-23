@@ -28,6 +28,7 @@ final readonly class DownloadResponse
         private ?string                    $contentType,
         private ?DownloadRange             $range = null,
         private ?DownloadMultipartResponse $multipart = null,
+        private int                        $bytesPerSecond = 0,
     )
     {
     }
@@ -123,6 +124,33 @@ final readonly class DownloadResponse
     }
 
     /**
+     * Set a maximum download speed limit in bytes per second.
+     *
+     * @param int $bytesPerSecond Bandwidth limit in bytes/sec (0 = unlimited)
+     * @throws DownloadException
+     */
+    public function limitRate(int $bytesPerSecond): self
+    {
+        if ($bytesPerSecond < 0) {
+            throw DownloadException::invalidLimitRate();
+        }
+
+        return new self(
+            $this->headers,
+            $this->resource,
+            $this->request,
+            $this->responseAction,
+            $this->etag,
+            $this->statusCode,
+            $this->contentLength,
+            $this->contentType,
+            $this->range,
+            $this->multipart,
+            $bytesPerSecond
+        );
+    }
+
+    /**
      * @throws DownloadException
      */
     public function send(): void
@@ -131,12 +159,19 @@ final readonly class DownloadResponse
             @set_time_limit(0);
         }
 
-        self::clearOutputBuffers();
+        // Disable PHP's dynamic zlib compression if enabled
+        if (function_exists('ini_set')) {
+            @ini_set('zlib.output_compression', 'Off');
+        }
 
-        $this->headers
-            ->addLastModifiedHeader($this->resource->getLastModified())
-            ->addETagHeader($this->etag->getValue())
-            ->applyDefaultHeaders();
+        // clear output buffers
+        while (ob_get_level() > 0) {
+            if (!ob_end_clean()) {
+                break;
+            }
+        }
+
+        $this->addHeaders();
 
         match ($this->statusCode) {
             StatusCode::NOT_MODIFIED => $this->sendNotModified(),
@@ -157,7 +192,7 @@ final readonly class DownloadResponse
      */
     public function addCacheControl(string $value): self
     {
-        $this->headers->addHeader('Cache-Control', $value);
+        $this->headers->addCacheControlHeader($value);
         return $this;
     }
 
@@ -240,12 +275,12 @@ final readonly class DownloadResponse
         }
 
         if ($this->multipart !== null) {
-            $this->multipart->output();
+            $this->multipart->output($this->bytesPerSecond);
 
             return;
         }
 
-        $this->resource->output($this->contentLength, $contentStart);
+        $this->resource->output($this->contentLength, $contentStart, $this->bytesPerSecond);
     }
 
     private function buildHeaders(): void
@@ -257,12 +292,26 @@ final readonly class DownloadResponse
         http_response_code($this->statusCode->value);
     }
 
-    private static function clearOutputBuffers(): void
+    /**
+     * @throws DownloadException
+     */
+    private function addHeaders(): void
     {
-        while (ob_get_level() > 0) {
-            if (!ob_end_clean()) {
-                break;
-            }
+        $this->headers
+            ->addLastModifiedHeader($this->resource->getLastModified())
+            ->addETagHeader($this->etag->getValue())
+            ->applyDefaultHeaders();
+
+        if ($this->responseAction->isServerSide() === false) {
+            $this->headers->disableBuffering();
+        }
+
+        if ($this->responseAction === ResponseAction::X_SEND_FILE) {
+            $this->headers->addXSendfileHeader($this->resource->getFilepath());
+        }
+
+        if ($this->responseAction === ResponseAction::X_ACCEL_REDIRECT) {
+            $this->headers->addXAccelRedirectHeader($this->resource->getInternalUri());
         }
     }
 }

@@ -33,13 +33,22 @@ final readonly class DownloadMultipartResponse
         return $length + strlen($this->getClosingBoundary());
     }
 
-    public function output(): void
+    /**
+     * Outputs all requested range parts to the client with optional rate limiting.
+     *
+     * @param int $bytesPerSecond Max bandwidth in bytes per second (0 = unlimited)
+     */
+    public function output(int $bytesPerSecond = 0): void
     {
         foreach ($this->range->getItems() as $item) {
+            if (connection_aborted() === 1) {
+                break;
+            }
+
             echo $this->getPartHeader($item);
             flush();
 
-            $this->resource->output($item->getLength(), $item->getStart());
+            $this->resource->output($item->getLength(), $item->getStart(), $bytesPerSecond);
 
             echo "\r\n";
             flush();

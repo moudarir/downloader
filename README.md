@@ -8,6 +8,7 @@ A lightweight and modern PHP library for streaming files and in-memory data with
 - PHP 8.4+
 - File downloads
 - In-memory data downloads
+- Bandwidth Rate Limiting
 - HTTP Range Requests (RFC 9110)
 - Multipart byte ranges
 - Mandatory ETag generation
@@ -84,6 +85,30 @@ $response->send();
 * unsatisfiable ranges (`416 Range Not Satisfiable`).
 
 > For browser-based media playback, use `ResponseAction::PARTIAL` together with `inline()`.
+
+
+### Bandwidth Rate Limiting
+
+You can restrict the maximum download speed in bytes per second using the `limitRate()` method:
+
+```php
+use Moudarir\Downloader\Download;
+
+// Limit download speed to 500 KiB/s
+Download::fromFile('/path/to/video.mp4')
+    ->limitRate(500 * 1024)
+    ->inline()
+    ->send();
+
+// Remove rate limit (0 = unlimited, default behavior)
+Download::fromFile('/path/to/file.zip')
+    ->limitRate(0)
+    ->send();
+```
+
+Rate limiting is applied to file and in-memory resources, including single-range and multipart byte-range responses.
+
+> The rate limit applies when PHP streams the response body. It does not apply to server-side delivery through X-Sendfile or X-Accel-Redirect.
 
 
 ### Download from data

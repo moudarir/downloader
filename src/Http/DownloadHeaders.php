@@ -55,7 +55,7 @@ final class DownloadHeaders
     {
         return $this->addHeader(
             'Content-Disposition',
-            FileHelper::formatContentDisposition($filename, $this->disposition->value)
+            FileHelper::formatContentDisposition($filename, $this->disposition)
         );
     }
 
@@ -125,6 +125,40 @@ final class DownloadHeaders
         }
 
         return $this;
+    }
+
+    /**
+     * @throws DownloadException
+     */
+    public function addCacheControlHeader(string $value): self
+    {
+        return $this->addHeader('Cache-Control', $value);
+    }
+
+    /**
+     * @throws DownloadException
+     */
+    public function addXSendfileHeader(string $filepath): self
+    {
+        return $this->addHeader('X-Sendfile', $filepath);
+    }
+
+    /**
+     * @throws DownloadException
+     */
+    public function addXAccelRedirectHeader(string $internalUri): self
+    {
+        return $this->addHeader('X-Accel-Redirect', $internalUri);
+    }
+
+    /**
+     * Disables FastCGI buffering for Nginx to allow real-time chunk streaming.
+     *
+     * @throws DownloadException
+     */
+    public function disableBuffering(): self
+    {
+        return $this->addHeader('X-Accel-Buffering', 'no');
     }
 
     /**

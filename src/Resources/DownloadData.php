@@ -70,6 +70,11 @@ final readonly class DownloadData implements DownloadResource
         return null;
     }
 
+    public function getInternalUri(): ?string
+    {
+        return null;
+    }
+
     public function getHash(string $algorithm): ?string
     {
         try {
@@ -84,7 +89,7 @@ final readonly class DownloadData implements DownloadResource
         return self::SUPPORTED_ETAG_STRATEGIES;
     }
 
-    public function output(int $length, int $start = 0): void
+    public function output(int $length, int $start = 0, int $bytesPerSecond = 0): void
     {
         if ($length <= 0 || empty($this->data)) {
             return;
@@ -97,7 +102,7 @@ final readonly class DownloadData implements DownloadResource
 
         try {
             fwrite($stream, $this->data);
-            $this->outputStream($stream, $length, $start);
+            $this->outputStream($stream, $length, $start, $bytesPerSecond);
         } finally {
             fclose($stream);
         }

@@ -88,6 +88,11 @@ final class DownloadException extends Exception
         return new self("An internal URI is required for X-Accel-Redirect.");
     }
 
+    public static function invalidLimitRate(): self
+    {
+        return new self("Rate limit must be greater than or equal to 0.");
+    }
+
     public static function generic(string $message): self
     {
         return new self($message);

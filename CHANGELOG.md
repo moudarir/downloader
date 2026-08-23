@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [3.0.0] - 2026-08-23
+
+### Added
+
+* Added download rate limiting through `DownloadResponse::limitRate()`.
+* Added optional bandwidth limiting to file and in-memory resource streaming.
+* Added rate limiting support for single-range and multipart byte-range responses.
+* Added `X-Accel-Buffering: no` support to disable Nginx buffering during streamed responses.
+
+### Changed
+
+* Extended `DownloadResource::output()` with an optional maximum bandwidth parameter.
+* Centralized rate-limited stream output through `StreamOutputTrait`.
+* Improved client disconnection handling during streamed transfers.
+* Updated `DownloadMultipartResponse::output()` signature to propagate bandwidth throttling parameters.
+* Refactored `DownloadResponse` internal state to maintain strict immutability while supporting fluent rate limiting.
+
+### Breaking Changes
+
+* Changed the `DownloadResource::output()` method signature to accept an optional `$bytesPerSecond` parameter.
+* Custom `DownloadResource` implementations must update their `output()` method signature accordingly.
+
+### Usage
+
+```php
+$response = Download::fromFile('/path/to/video.mp4', 'video.mp4', 'video/mp4')
+    ->limitRate(500 * 1024)
+    ->send();
+```
+
 ## [2.4.0] - 2026-08-20
 
 ### Added

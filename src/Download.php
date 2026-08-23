@@ -55,18 +55,12 @@ final readonly class Download
     {
         self::validateResponseAction($responseAction, true, $xAccelRedirectUri);
 
-        $download = new self(
-            DownloadFile::create($filepath, $filename, $mime),
+        return new self(
+            DownloadFile::create($filepath, $filename, $mime, $xAccelRedirectUri),
             $responseAction,
             $strategy
-        );
-
-        return match ($responseAction) {
-            ResponseAction::DEFAULT => $download->defaultResponse(),
-            ResponseAction::PARTIAL => $download->partialResponse(),
-            ResponseAction::X_SEND_FILE => $download->xSendFileResponse(),
-            ResponseAction::X_ACCEL_REDIRECT => $download->xAccelRedirectResponse($xAccelRedirectUri),
-        };
+        )
+            ->response();
     }
 
     /**
@@ -82,66 +76,21 @@ final readonly class Download
     {
         self::validateResponseAction($responseAction);
 
-        $download = new self(
+        return new self(
             DownloadData::create($data, $filename, $mime),
             $responseAction,
             $strategy
-        );
-
-        if ($responseAction === ResponseAction::PARTIAL) {
-            return $download->partialResponse();
-        }
-
-        return $download->defaultResponse();
+        )
+            ->response();
     }
 
     /**
      * @throws DownloadException
      */
-    private function defaultResponse(): DownloadResponse
+    private function response(): DownloadResponse
     {
-        $result = $this->evaluatePreconditions();
-
-        if ($result !== null) {
-            return $result;
-        }
-
-        return  DownloadResponse::create(
-            $this->headers,
-            $this->resource,
-            $this->request,
-            $this->responseAction,
-            $this->etag,
-        );
-    }
-
-    /**
-     * @throws DownloadException
-     */
-    private function partialResponse(): DownloadResponse
-    {
-        $result = $this->evaluatePreconditions();
-
-        if ($result !== null) {
-            return $result;
-        }
-
-        return  DownloadResponse::create(
-            $this->headers,
-            $this->resource,
-            $this->request,
-            $this->responseAction,
-            $this->etag,
-        );
-    }
-
-    /**
-     * @throws DownloadException
-     */
-    private function xSendFileResponse(): DownloadResponse
-    {
-        if ($this->resource->getFilepath() === null) {
-            throw DownloadException::operationNotSupportedOnData('X-Sendfile');
+        if ($this->responseAction->isServerSide() === true && $this->resource->getFilepath() === null) {
+            throw DownloadException::operationNotSupportedOnData($this->responseAction->value);
         }
 
         $result = $this->evaluatePreconditions();
@@ -150,35 +99,7 @@ final readonly class Download
             return $result;
         }
 
-        $this->headers->addHeader('X-Sendfile', $this->resource->getFilepath());
-
-        return  DownloadResponse::create(
-            $this->headers,
-            $this->resource,
-            $this->request,
-            $this->responseAction,
-            $this->etag,
-        );
-    }
-
-    /**
-     * @throws DownloadException
-     */
-    private function xAccelRedirectResponse(string $internalUri): DownloadResponse
-    {
-        if ($this->resource->getFilepath() === null) {
-            throw DownloadException::operationNotSupportedOnData('X-Accel-Redirect');
-        }
-
-        $result = $this->evaluatePreconditions();
-
-        if ($result !== null) {
-            return $result;
-        }
-
-        $this->headers->addHeader('X-Accel-Redirect', $internalUri);
-
-        return  DownloadResponse::create(
+        return DownloadResponse::create(
             $this->headers,
             $this->resource,
             $this->request,

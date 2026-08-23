@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Moudarir\Downloader\Helpers;
 
 use Moudarir\Downloader\DownloadConfig;
+use Moudarir\Downloader\Enums\ContentDisposition;
 use Moudarir\Downloader\Exceptions\DownloadException;
 use Moudarir\MimeDetector\Exceptions\MimeTypeException;
 use Moudarir\MimeDetector\MimeType;
@@ -35,11 +36,14 @@ final class FileHelper
      *
      * The filename* parameter contains the original UTF-8 filename.
      */
-    public static function formatContentDisposition(string $filename, string $disposition): string
+    public static function formatContentDisposition(
+        string $filename,
+        ContentDisposition $disposition = ContentDisposition::ATTACHMENT
+    ): string
     {
         return sprintf(
             '%s; filename="%s"; filename*=UTF-8\'\'%s',
-            $disposition,
+            $disposition->value,
             self::sanitizeFilename($filename),
             rawurlencode($filename)
         );

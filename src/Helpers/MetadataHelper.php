@@ -94,6 +94,11 @@ final readonly class MetadataHelper
 
     public function etagValue(): string
     {
+        return $this->etag->getValue();
+    }
+
+    public function etagOpaqueValue(): string
+    {
         return $this->etag->getOpaqueValue();
     }
 
