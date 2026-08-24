@@ -197,7 +197,7 @@ final class DownloadResponseTest extends TestCase
             self::$resource,
             DownloadRequest::create(),
             ResponseAction::DEFAULT,
-            self::$etag
+            self::$etag,
         );
 
         $metadata = $response->metadata();

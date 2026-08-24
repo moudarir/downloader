@@ -31,6 +31,7 @@ final readonly class Download
     private function __construct(
         private DownloadResource $resource,
         private ResponseAction $responseAction,
+        private DownloadConfig $config,
         ?ETagStrategy $strategy = null,
     )
     {
@@ -51,6 +52,7 @@ final readonly class Download
         ResponseAction $responseAction = ResponseAction::DEFAULT,
         ?string $xAccelRedirectUri = null,
         ?ETagStrategy $strategy = null,
+        DownloadConfig $config = new DownloadConfig(),
     ): DownloadResponse
     {
         self::validateResponseAction($responseAction, true, $xAccelRedirectUri);
@@ -58,6 +60,7 @@ final readonly class Download
         return new self(
             DownloadFile::create($filepath, $filename, $mime, $xAccelRedirectUri),
             $responseAction,
+            $config,
             $strategy
         )
             ->response();
@@ -71,7 +74,8 @@ final readonly class Download
         string $filename,
         ?string $mime = null,
         ResponseAction $responseAction = ResponseAction::DEFAULT,
-        ?ETagStrategy $strategy = null
+        ?ETagStrategy $strategy = null,
+        DownloadConfig $config = new DownloadConfig(),
     ): DownloadResponse
     {
         self::validateResponseAction($responseAction);
@@ -79,6 +83,7 @@ final readonly class Download
         return new self(
             DownloadData::create($data, $filename, $mime),
             $responseAction,
+            $config,
             $strategy
         )
             ->response();
@@ -105,6 +110,7 @@ final readonly class Download
             $this->request,
             $this->responseAction,
             $this->etag,
+            $this->config,
         );
     }
 
@@ -126,7 +132,8 @@ final readonly class Download
             $this->resource,
             $this->request,
             $this->responseAction,
-            $this->etag
+            $this->etag,
+            $this->config,
         );
     }
 

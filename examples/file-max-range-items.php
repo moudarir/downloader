@@ -17,7 +17,7 @@ try {
         );
     }
 
-    $config = new DownloadConfig()->withLimitRate(500 * 1024);
+    $config = new DownloadConfig()->withMaxRangeItems(5);
 
     Download::fromFile(
         $filepath,

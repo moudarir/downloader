@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Moudarir\Downloader\Range;
 
+use Moudarir\Downloader\DownloadConfig;
 use Moudarir\Downloader\ETag\DownloadETag;
 use Moudarir\Downloader\Exceptions\DownloadException;
 use Moudarir\Downloader\Helpers\HttpDateHelper;
@@ -23,7 +24,12 @@ final readonly class DownloadRangeResolver
     /**
      * @throws DownloadException
      */
-    public static function create(DownloadResource $resource, DownloadRequest $request, DownloadETag $etag): DownloadRangeResult
+    public static function create(
+        DownloadResource $resource,
+        DownloadRequest $request,
+        DownloadETag $etag,
+        DownloadConfig $config,
+    ): DownloadRangeResult
     {
         $resolver = new self($request, $etag, $resource->getLastModified());
 
@@ -31,7 +37,11 @@ final readonly class DownloadRangeResolver
             return DownloadRangeResult::valid(DownloadRange::full($resource->getFilesize()));
         }
 
-        return DownloadRangeParser::parse($request->getRange(), $resource->getFilesize());
+        return DownloadRangeParser::parse(
+            $request->getRange(),
+            $resource->getFilesize(),
+            $config->getMaxRangeItems(),
+        );
     }
 
     private function shouldProcessRange(): bool

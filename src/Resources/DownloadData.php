@@ -89,22 +89,28 @@ final readonly class DownloadData implements DownloadResource
         return self::SUPPORTED_ETAG_STRATEGIES;
     }
 
-    public function output(int $length, int $start = 0, int $bytesPerSecond = 0): void
+    public function output(DownloadConfig $config, int $length, int $start = 0): void
     {
         if ($length <= 0 || empty($this->data)) {
             return;
         }
 
-        // php://temp garde les données en RAM jusqu'à 2Mo, puis passe sur disque temporaire
-        if (($stream = fopen('php://temp', 'r+')) === false) {
+        // `php://temp`: keeps data in RAM up to 2MB, then switches to a temporary disk.
+        if (($handle = fopen('php://temp', 'r+')) === false) {
             return;
         }
 
         try {
-            fwrite($stream, $this->data);
-            $this->outputStream($stream, $length, $start, $bytesPerSecond);
+            fwrite($handle, $this->data);
+            $this->outputStream(
+                $handle,
+                $length,
+                $start,
+                $config->getBytesPerSecond(),
+                $config->getChunkSize(),
+            );
         } finally {
-            fclose($stream);
+            fclose($handle);
         }
     }
 }

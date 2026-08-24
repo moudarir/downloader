@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Moudarir\Downloader\Resources;
 
+use Moudarir\Downloader\DownloadConfig;
 use Moudarir\Downloader\Enums\ETagStrategy;
 
 interface DownloadResource
@@ -20,9 +21,8 @@ interface DownloadResource
      *
      * @param int $length Total bytes to send
      * @param int $start Starting byte offset
-     * @param int $bytesPerSecond Maximum bandwidth limit in bytes/sec (0 = unlimited)
      */
-    public function output(int $length, int $start = 0, int $bytesPerSecond = 0): void;
+    public function output(DownloadConfig $config, int $length, int $start = 0): void;
     public function getFilepath(): ?string;
     public function getHash(string $algorithm): ?string;
 

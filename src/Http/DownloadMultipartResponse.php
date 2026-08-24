@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Moudarir\Downloader\Http;
 
+use Moudarir\Downloader\DownloadConfig;
 use Moudarir\Downloader\Range\DownloadRange;
 use Moudarir\Downloader\Range\DownloadRangeItem;
 use Moudarir\Downloader\Resources\DownloadResource;
@@ -35,10 +36,8 @@ final readonly class DownloadMultipartResponse
 
     /**
      * Outputs all requested range parts to the client with optional rate limiting.
-     *
-     * @param int $bytesPerSecond Max bandwidth in bytes per second (0 = unlimited)
      */
-    public function output(int $bytesPerSecond = 0): void
+    public function output(DownloadConfig $config): void
     {
         foreach ($this->range->getItems() as $item) {
             if (connection_aborted() === 1) {
@@ -48,7 +47,7 @@ final readonly class DownloadMultipartResponse
             echo $this->getPartHeader($item);
             flush();
 
-            $this->resource->output($item->getLength(), $item->getStart(), $bytesPerSecond);
+            $this->resource->output($config, $item->getLength(), $item->getStart());
 
             echo "\r\n";
             flush();

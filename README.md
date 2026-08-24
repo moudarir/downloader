@@ -87,30 +87,6 @@ $response->send();
 > For browser-based media playback, use `ResponseAction::PARTIAL` together with `inline()`.
 
 
-### Bandwidth Rate Limiting
-
-You can restrict the maximum download speed in bytes per second using the `limitRate()` method:
-
-```php
-use Moudarir\Downloader\Download;
-
-// Limit download speed to 500 KiB/s
-Download::fromFile('/path/to/video.mp4')
-    ->limitRate(500 * 1024)
-    ->inline()
-    ->send();
-
-// Remove rate limit (0 = unlimited, default behavior)
-Download::fromFile('/path/to/file.zip')
-    ->limitRate(0)
-    ->send();
-```
-
-Rate limiting is applied to file and in-memory resources, including single-range and multipart byte-range responses.
-
-> The rate limit applies when PHP streams the response body. It does not apply to server-side delivery through X-Sendfile or X-Accel-Redirect.
-
-
 ### Download from data
 
 ```php
@@ -153,6 +129,40 @@ $response->send();
 `X-Accel-Redirect` uses an internal URI configured for the web server. It is not required to be the physical filesystem path.
 
 Server-side response actions are only available for file resources.
+
+
+### Download configuration
+
+Download behavior can be customized through `DownloadConfig`.
+
+```php
+use Moudarir\Downloader\Download;
+use Moudarir\Downloader\DownloadConfig;
+
+$config = new DownloadConfig()
+    ->withLimitRate(500 * 1024)
+    ->withChunkSize(256 * 1024)
+    ->withMaxRangeItems(5);
+
+$response = Download::fromFile(
+    '/path/to/video.mp4',
+    'video.mp4',
+    'video/mp4',
+    config: $config,
+);
+
+$response->send();
+```
+
+The configuration options are:
+
+| Action                | Default                                            | Description                                                                     |
+|:----------------------|:---------------------------------------------------|:--------------------------------------------------------------------------------|
+| `withLimitRate()`     | `DownloadConfig::BYTES_PER_SECOND` (0 = unlimited) | Sets the maximum download rate in bytes per second.                             |
+| `withChunkSize()`     | `DownloadConfig::CHUNK_SIZE` (128 KiB)             | Sets the stream read buffer size.                                               |
+| `withMaxRangeItems()` | `DownloadConfig::MAX_RANGE_ITEMS` (10)             | Sets the maximum number of byte ranges accepted in a single HTTP Range request. |
+
+> Invalid configuration values throw a `DownloadException`.
 
 
 ### Response actions

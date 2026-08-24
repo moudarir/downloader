@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Moudarir\Downloader\Tests\Unit\Resources;
 
+use Moudarir\Downloader\DownloadConfig;
 use Moudarir\Downloader\Enums\ETagStrategy;
 use Moudarir\Downloader\Exceptions\DownloadException;
 use Moudarir\Downloader\Resources\DownloadData;
@@ -20,6 +21,8 @@ final class DownloadDataTest extends TestCase
 
     private static DownloadData $resource;
 
+    private static DownloadConfig $config;
+
     public static function setUpBeforeClass(): void
     {
         self::$fixture = TestConfig::resourceData();
@@ -28,6 +31,7 @@ final class DownloadDataTest extends TestCase
             self::$fixture['filename'],
             self::$fixture['mime']
         );
+        self::$config = new DownloadConfig();
     }
 
     public function testItThrowsWhenDataIsEmpty(): void
@@ -78,7 +82,7 @@ final class DownloadDataTest extends TestCase
     public function testOutputFullData(): void
     {
         ob_start();
-        self::$resource->output(self::$resource->getFilesize());
+        self::$resource->output(self::$config, self::$resource->getFilesize());
         $output = ob_get_clean();
 
         self::assertSame(strlen(self::$fixture['content']), strlen($output));
@@ -91,7 +95,7 @@ final class DownloadDataTest extends TestCase
         $start = 5;
 
         ob_start();
-        self::$resource->output($length, $start);
+        self::$resource->output(self::$config, $length, $start);
         $output = ob_get_clean();
 
         $expectedContent = substr(self::$fixture['content'], $start, $length);
@@ -103,7 +107,7 @@ final class DownloadDataTest extends TestCase
     public function testOutputWithZeroLengthReturnsNothing(): void
     {
         ob_start();
-        self::$resource->output(0);
+        self::$resource->output(self::$config, 0);
         $output = ob_get_clean();
 
         self::assertSame('', $output);

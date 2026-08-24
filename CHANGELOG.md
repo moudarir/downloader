@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [3.1.0] - 2026-08-24
+
+### Added
+
+* Added `DownloadConfig` as an immutable per-download configuration object.
+* Added configurable download rate limiting through `withLimitRate()`.
+* Added configurable stream chunk size through `withChunkSize()`.
+* Added configurable maximum Range item count through `withMaxRangeItems()`.
+
+### Changed
+
+* `Download::fromFile()` and `Download::fromData()` now accept an optional `DownloadConfig`.
+* Stream and Range configuration is now established before `DownloadResponse` creation.
+* Propagated `DownloadConfig` through file, in-memory and multipart resource output.
+* Updated examples and tests to use per-download configuration.
+
+### Breaking Changes
+
+* `DownloadResource::output()` now receives a `DownloadConfig` instance instead of `$bytesPerSecond` or `$chunkSize` parameters.
+* Removed `DownloadResponse::limitRate()`.
+
 ## [3.0.0] - 2026-08-23
 
 ### Added

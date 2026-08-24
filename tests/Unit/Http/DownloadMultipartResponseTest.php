@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Moudarir\Downloader\Tests\Unit\Http;
 
+use Moudarir\Downloader\DownloadConfig;
 use Moudarir\Downloader\Http\DownloadMultipartResponse;
 use Moudarir\Downloader\Range\DownloadRange;
 use Moudarir\Downloader\Range\DownloadRangeItem;
@@ -22,10 +23,13 @@ final class DownloadMultipartResponseTest extends TestCase
 
     private static string $boundary;
 
+    private static DownloadConfig $config;
+
     public static function setUpBeforeClass(): void
     {
         self::$multipart = TestConfig::multipart();
         self::$boundary = self::$multipart['boundary'];
+        self::$config = new DownloadConfig();
     }
 
     public function testItReturnsCorrectContentType(): void
@@ -68,7 +72,7 @@ final class DownloadMultipartResponseTest extends TestCase
             . "--" . self::$boundary . "--\r\n";
 
         ob_start();
-        $multipart->output();
+        $multipart->output(self::$config);
         $output = ob_get_clean();
 
         self::assertSame($expectedBody, $output);
@@ -101,7 +105,7 @@ final class DownloadMultipartResponseTest extends TestCase
             . "--" . self::$boundary . "--\r\n";
 
         ob_start();
-        $multipart->output();
+        $multipart->output(self::$config);
         $output = ob_get_clean();
 
         self::assertSame($expectedBody, $output);
@@ -121,7 +125,7 @@ final class DownloadMultipartResponseTest extends TestCase
         $multipart = new DownloadMultipartResponse($resource, $range);
 
         ob_start();
-        $multipart->output();
+        $multipart->output(self::$config);
         $output = ob_get_clean();
 
         self::assertSame(strlen($output), $multipart->getContentLength());

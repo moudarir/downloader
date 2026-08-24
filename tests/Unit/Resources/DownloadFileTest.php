@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Moudarir\Downloader\Tests\Unit\Resources;
 
+use Moudarir\Downloader\DownloadConfig;
 use Moudarir\Downloader\Enums\ETagStrategy;
 use Moudarir\Downloader\Exceptions\DownloadException;
 use Moudarir\Downloader\Resources\DownloadFile;
@@ -17,6 +18,8 @@ final class DownloadFileTest extends TestCase
 
     private static DownloadFile $resource;
 
+    private static DownloadConfig $config;
+
     public static function setUpBeforeClass(): void
     {
         $fixture = TestConfig::resourceFile('pdf');
@@ -26,6 +29,7 @@ final class DownloadFileTest extends TestCase
             $fixture['filename'],
             $fixture['mime']
         );
+        self::$config = new DownloadConfig();
     }
 
     public function testItThrowsWhenFileDoesNotExist(): void
@@ -63,7 +67,7 @@ final class DownloadFileTest extends TestCase
     public function testOutputFullFile(): void
     {
         ob_start();
-        self::$resource->output(self::$resource->getFilesize());
+        self::$resource->output(self::$config, self::$resource->getFilesize());
         $output = ob_get_clean();
 
         $this->assertSame(filesize(self::$filepath), strlen($output));
@@ -76,7 +80,7 @@ final class DownloadFileTest extends TestCase
         $start = 10;
 
         ob_start();
-        self::$resource->output($length, $start);
+        self::$resource->output(self::$config, $length, $start);
         $output = ob_get_clean();
 
         $expectedContent = file_get_contents(self::$filepath, false, null, $start, $length);
@@ -88,7 +92,7 @@ final class DownloadFileTest extends TestCase
     public function testOutputWithZeroLengthReturnsNothing(): void
     {
         ob_start();
-        self::$resource->output(0);
+        self::$resource->output(self::$config, 0);
         $output = ob_get_clean();
 
         $this->assertSame('', $output);

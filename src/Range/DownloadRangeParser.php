@@ -15,7 +15,7 @@ final class DownloadRangeParser
     /**
      * @throws DownloadException
      */
-    public static function parse(string $header, int $filesize): DownloadRangeResult
+    public static function parse(string $header, int $filesize, int $maxRangeItems = DownloadConfig::MAX_RANGE_ITEMS): DownloadRangeResult
     {
         if (!str_starts_with($header, 'bytes=')) {
             return DownloadRangeResult::invalid();
@@ -23,7 +23,7 @@ final class DownloadRangeParser
 
         $ranges = explode(',', substr($header, 6));
 
-        if (count($ranges) > DownloadConfig::MAX_RANGE_ITEMS) {
+        if (count($ranges) > $maxRangeItems) {
             return DownloadRangeResult::invalid();
         }
 

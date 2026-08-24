@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Moudarir\Downloader\Tests\Unit\Range;
 
+use Moudarir\Downloader\DownloadConfig;
 use Moudarir\Downloader\Enums\ETagStrategy;
 use Moudarir\Downloader\ETag\DownloadETag;
 use Moudarir\Downloader\Http\DownloadRequest;
@@ -243,7 +244,8 @@ final class DownloadRangeResolverTest extends TestCase
         return DownloadRangeResolver::create(
             $resource ?? self::$resource,
             DownloadRequest::create(),
-                $etag ?? self::$etag
+                $etag ?? self::$etag,
+            new DownloadConfig()
         );
     }
 

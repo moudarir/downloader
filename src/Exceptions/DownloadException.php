@@ -93,6 +93,16 @@ final class DownloadException extends Exception
         return new self("Rate limit must be greater than or equal to 0.");
     }
 
+    public static function invalidChunkSize(): self
+    {
+        return new self("Chunk size must be greater than 0.");
+    }
+
+    public static function invalidMaxRangeItems(): self
+    {
+        return new self("Max range items must be greater than 0.");
+    }
+
     public static function generic(string $message): self
     {
         return new self($message);

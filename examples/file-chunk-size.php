@@ -17,7 +17,7 @@ try {
         );
     }
 
-    $config = new DownloadConfig()->withLimitRate(500 * 1024);
+    $config = new DownloadConfig()->withChunkSize(256 * 1024);
 
     Download::fromFile(
         $filepath,

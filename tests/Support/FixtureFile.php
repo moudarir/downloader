@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Moudarir\Downloader\Tests\Support;
 
+use Moudarir\Downloader\DownloadConfig;
 use Moudarir\Downloader\Enums\ContentDisposition;
 use Moudarir\Downloader\Enums\ETagStrategy;
 use Moudarir\Downloader\Exceptions\DownloadException;
@@ -106,14 +107,20 @@ final readonly class FixtureFile implements DownloadResource
         }
     }
 
-    public function output(int $length, int $start = 0, int $bytesPerSecond = 0): void
+    public function output(DownloadConfig $config, int $length, int $start = 0): void
     {
         if (($handle = fopen($this->filepath, 'rb')) === false) {
             return;
         }
 
         try {
-            $this->outputStream($handle, $length, $start, $bytesPerSecond);
+            $this->outputStream(
+                $handle,
+                $length,
+                $start,
+                $config->getBytesPerSecond(),
+                $config->getChunkSize(),
+            );
         } finally {
             fclose($handle);
         }

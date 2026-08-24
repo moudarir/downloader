@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Moudarir\Downloader\Http;
 
+use Moudarir\Downloader\DownloadConfig;
 use Moudarir\Downloader\Enums\ContentDisposition;
 use Moudarir\Downloader\Enums\ResponseAction;
 use Moudarir\Downloader\Enums\StatusCode;
@@ -26,9 +27,9 @@ final readonly class DownloadResponse
         private StatusCode                 $statusCode,
         private int                        $contentLength,
         private ?string                    $contentType,
+        private DownloadConfig             $config,
         private ?DownloadRange             $range = null,
         private ?DownloadMultipartResponse $multipart = null,
-        private int                        $bytesPerSecond = 0,
     )
     {
     }
@@ -40,6 +41,7 @@ final readonly class DownloadResponse
         DownloadRequest $request,
         ResponseAction $responseAction,
         DownloadETag $etag,
+        DownloadConfig $config = new DownloadConfig(),
     ): self
     {
         return new self(
@@ -51,6 +53,7 @@ final readonly class DownloadResponse
             $statusCode,
             0,
             null,
+            $config,
         );
     }
 
@@ -63,6 +66,7 @@ final readonly class DownloadResponse
         DownloadRequest $request,
         ResponseAction $responseAction,
         DownloadETag $etag,
+        DownloadConfig $config = new DownloadConfig(),
     ): self
     {
         $statusCode = StatusCode::OK;
@@ -74,7 +78,7 @@ final readonly class DownloadResponse
         if ($responseAction === ResponseAction::PARTIAL) {
             $headers->addAcceptRangesHeader();
 
-            $result = DownloadRangeResolver::create($resource, $request, $etag);
+            $result = DownloadRangeResolver::create($resource, $request, $etag, $config);
 
             if ($result->isUnsatisfiable()) {
                 $headers->addContentRangeHeader(sprintf('bytes */%d', $resource->getFilesize()));
@@ -88,6 +92,7 @@ final readonly class DownloadResponse
                     StatusCode::RANGE_NOT_SATISFIABLE,
                     0,
                     null,
+                    $config
                 );
             }
 
@@ -118,35 +123,9 @@ final readonly class DownloadResponse
             $statusCode,
             $contentLength,
             $contentType,
+            $config,
             $range,
             $multipart,
-        );
-    }
-
-    /**
-     * Set a maximum download speed limit in bytes per second.
-     *
-     * @param int $bytesPerSecond Bandwidth limit in bytes/sec (0 = unlimited)
-     * @throws DownloadException
-     */
-    public function limitRate(int $bytesPerSecond): self
-    {
-        if ($bytesPerSecond < 0) {
-            throw DownloadException::invalidLimitRate();
-        }
-
-        return new self(
-            $this->headers,
-            $this->resource,
-            $this->request,
-            $this->responseAction,
-            $this->etag,
-            $this->statusCode,
-            $this->contentLength,
-            $this->contentType,
-            $this->range,
-            $this->multipart,
-            $bytesPerSecond
         );
     }
 
@@ -275,12 +254,12 @@ final readonly class DownloadResponse
         }
 
         if ($this->multipart !== null) {
-            $this->multipart->output($this->bytesPerSecond);
+            $this->multipart->output($this->config);
 
             return;
         }
 
-        $this->resource->output($this->contentLength, $contentStart, $this->bytesPerSecond);
+        $this->resource->output($this->config, $this->contentLength, $contentStart);
     }
 
     private function buildHeaders(): void
