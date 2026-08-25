@@ -100,7 +100,7 @@ final class DownloadHeadersTest extends TestCase
     {
         $headers = new DownloadHeaders();
 
-        $headers->addContentType('video/mp4');
+        $headers->addContentTypeHeader('video/mp4');
 
         self::assertSame('video/mp4', $headers->all()['Content-Type']);
     }
@@ -183,7 +183,7 @@ final class DownloadHeadersTest extends TestCase
         $headers = new DownloadHeaders();
 
         $headers
-            ->addContentType('video/mp4')
+            ->addContentTypeHeader('video/mp4')
             ->addContentLengthHeader(1234)
             ->addAcceptRangesHeader()
             ->addETagHeader('"etag"');

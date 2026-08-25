@@ -30,7 +30,6 @@ trait StreamOutputTrait
             return;
         }
 
-        $bytesPerSecond = max(0, $bytesPerSecond);
         $meta = stream_get_meta_data($stream);
 
         if ($meta['seekable']) {
@@ -44,14 +43,14 @@ trait StreamOutputTrait
         }
 
         $bytesRemaining = $length;
+        $totalBytes = 0;
+        $transferStartTime = hrtime(true);
 
         while ($bytesRemaining > 0 && !feof($stream)) {
             // Prevent disk I/O if client aborted initially or during previous chunk's flush()
             if (connection_aborted() === 1) {
                 break;
             }
-
-            $chunkStartTime = hrtime(true);
 
             $readSize = min($chunkSize, $bytesRemaining);
             $buffer = fread($stream, $readSize);
@@ -70,8 +69,10 @@ trait StreamOutputTrait
 
             // Apply rate limiting throttle if configured
             if ($bytesPerSecond > 0) {
-                $expectedMicroseconds = ($bytesRead / $bytesPerSecond) * 1_000_000;
-                $elapsedMicroseconds = (hrtime(true) - $chunkStartTime) / 1_000;
+                $totalBytes += $bytesRead;
+
+                $expectedMicroseconds = ($totalBytes / $bytesPerSecond) * 1_000_000;
+                $elapsedMicroseconds = (hrtime(true) - $transferStartTime) / 1_000;
                 $sleepMicroseconds = (int) ($expectedMicroseconds - $elapsedMicroseconds);
 
                 if ($sleepMicroseconds > 0) {

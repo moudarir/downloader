@@ -227,7 +227,7 @@ final readonly class DownloadResponse
     {
         $this->headers
             ->addContentDispositionHeader($this->resource->getFilename())
-            ->addContentType($this->contentType)
+            ->addContentTypeHeader($this->contentType)
             ->addContentLengthHeader($this->contentLength);
 
         $contentStart = 0;

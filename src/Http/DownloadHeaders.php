@@ -94,7 +94,7 @@ final class DownloadHeaders
      *
      * @throws DownloadException
      */
-    public function addContentType(string $value): self
+    public function addContentTypeHeader(string $value): self
     {
         return $this->addHeader('Content-Type', $value);
     }

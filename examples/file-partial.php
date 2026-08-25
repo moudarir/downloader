@@ -1,6 +1,7 @@
 <?php
 
 use Moudarir\Downloader\Download;
+use Moudarir\Downloader\DownloadConfig;
 use Moudarir\Downloader\Enums\ResponseAction;
 use Moudarir\Downloader\Exceptions\DownloadException;
 use Moudarir\Downloader\Tests\Support\TestConfig;
@@ -17,11 +18,15 @@ try {
         );
     }
 
+    $config = new DownloadConfig()
+        ->withLimitRate(500 * 1024);
+
     Download::fromFile(
         $filepath,
         $resource['filename'],
         $resource['mime'],
-        ResponseAction::PARTIAL
+        ResponseAction::PARTIAL,
+        config: $config,
     )
         ->inline()
         ->send();
