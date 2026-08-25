@@ -1,5 +1,7 @@
 # Downloader
 
+[![Latest Version](https://img.shields.io/packagist/v/moudarir/downloader?style=flat-square)](https://packagist.org/packages/moudarir/downloader) [![Tests](https://github.com/moudarir/downloader/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/moudarir/downloader/actions/workflows/tests.yml) [![PHP Version Require](https://img.shields.io/packagist/dependency-v/moudarir/downloader/php?color=%238892bf&style=flat-square)](https://packagist.org/packages/moudarir/downloader) [![License](https://img.shields.io/packagist/l/moudarir/downloader.svg?style=flat-square)](https://github.com/moudarir/downloader/blob/main/LICENSE)
+
 A lightweight and modern PHP library for streaming files and in-memory data with full support for HTTP conditional requests and byte range requests.
 
 
