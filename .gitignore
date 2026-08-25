@@ -4,10 +4,11 @@
 .vscode/
 .idea/
 .phpunit.cache/
-examples/resources/*
 public/
 vendor/
 
 ## Files
 .DS_Store
 composer.lock
+examples/resources/.php-server.pid
+examples/resources/php-error.log

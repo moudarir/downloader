@@ -8,14 +8,12 @@ They serve the local fixture:
 examples/resources/video.mov
 ```
 
-The `examples/resources/` directory is intentionally excluded from Git because the test fixture is a local file.
-
 The endpoints are available at:
 
 ```text
-http://localhost:8080/file.php
+http://127.0.0.1:8080/file.php
 and
-http://localhost:8080/file-partial.php
+http://127.0.0.1:8080/file-partial.php
 ```
 
 Start the local PHP server with:

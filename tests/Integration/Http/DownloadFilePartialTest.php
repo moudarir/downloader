@@ -83,8 +83,8 @@ final class DownloadFilePartialTest extends TestCase
         self::assertSame(
             [
                 StatusCode::PARTIAL_CONTENT->value,
-                '272',
-                272,
+                '270',
+                270,
             ],
             [
                 $response['status'],

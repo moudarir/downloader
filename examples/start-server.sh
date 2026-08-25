@@ -27,7 +27,7 @@ php \
     -d opcache.validate_timestamps=1 \
     -d log_errors=1 \
     -d error_log="$LOG_FILE" \
-    -S localhost:8080 \
+    -S 127.0.0.1:8080 \
     -t "$PROJECT_ROOT/examples" \
     > /dev/null 2>&1 &
 
@@ -37,7 +37,7 @@ echo $SERVER_PID > "$PID_FILE"
 # Attente que le port 8080 soit prêt (max 5 secondes)
 PORT_READY=0
 for i in {1..25}; do
-    if (echo > /dev/tcp/localhost/8080) >/dev/null 2>&1; then
+    if (echo > /dev/tcp/127.0.0.1/8080) >/dev/null 2>&1; then
         PORT_READY=1
         break
     fi
@@ -45,7 +45,7 @@ for i in {1..25}; do
 done
 
 if [ $PORT_READY -eq 1 ]; then
-    echo "PHP server started (PID: $SERVER_PID) on http://localhost:8080"
+    echo "PHP server started (PID: $SERVER_PID) on http://127.0.0.1:8080"
 else
     echo "Failed to start PHP server on port 8080."
     kill "$SERVER_PID" 2>/dev/null

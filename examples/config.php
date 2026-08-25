@@ -2,10 +2,9 @@
 return [
     'root_path' => dirname(__DIR__) . DIRECTORY_SEPARATOR,
     'urls' => [
-        'file' => 'http://localhost:8080/file.php',
-        'file-partial' => 'http://localhost:8080/file-partial.php',
-        'data' => 'http://localhost:8080/data.php',
-        'data-partial' => 'http://localhost:8080/data-partial.php',
+        'file' => 'http://127.0.0.1:8080/file.php',
+        'file-partial' => 'http://127.0.0.1:8080/file-partial.php',
+        'data' => 'http://127.0.0.1:8080/data.php',
     ],
     'resources' => [
         'files' => [
@@ -23,11 +22,6 @@ return [
                 'basename' => 'resource.bin',
                 'filename' => 'resource.bin',
                 'mime' => 'application/octet-stream',
-            ],
-            'sql' => [
-                'basename' => 'database.sql',
-                'filename' => 'database.sql',
-                'mime' => true,
             ],
             'txt' => [
                 'basename' => 'text.txt',
