@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [3.1.2] - 2026-08-25
+
+### Refactored
+
+* Moved HTTP precondition evaluation from `Download` to `DownloadResponse` to centralize response construction and simplify `Download`.
+
+## [3.1.1] - 2026-08-25
+
+### Performance
+
+* Improved download rate limiting accuracy by basing throttling delays on cumulative transfer time instead of calculating the delay independently for each chunk.
+
 ## [3.1.0] - 2026-08-24
 
 ### Added

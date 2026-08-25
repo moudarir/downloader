@@ -189,54 +189,6 @@ final class DownloadResponseTest extends TestCase
         self::assertFalse($metadata->rangeIsMultipart());
     }
 
-    public function testPreconditionResponseHasNoContent(): void
-    {
-        $response = DownloadResponse::precondition(
-            StatusCode::NOT_MODIFIED,
-            new DownloadHeaders(),
-            self::$resource,
-            DownloadRequest::create(),
-            ResponseAction::DEFAULT,
-            self::$etag,
-        );
-
-        $metadata = $response->metadata();
-
-        self::assertNull($metadata->contentType());
-        self::assertSame(
-            [
-                StatusCode::NOT_MODIFIED,
-                ResponseAction::DEFAULT,
-                0,
-            ],
-            [
-                $metadata->statusCode(),
-                $metadata->responseAction(),
-                $metadata->contentLength(),
-            ]
-        );
-    }
-
-    public function testPreconditionFailedResponseHasNoContent(): void
-    {
-        $response = DownloadResponse::precondition(
-            StatusCode::PRECONDITION_FAILED,
-            new DownloadHeaders(),
-            self::$resource,
-            DownloadRequest::create(),
-            ResponseAction::DEFAULT,
-            self::$etag
-        );
-
-        $metadata = $response->metadata();
-
-        self::assertNull($metadata->contentType());
-        self::assertSame(
-            [StatusCode::PRECONDITION_FAILED, 0],
-            [$metadata->statusCode(), $metadata->contentLength()]
-        );
-    }
-
     public function testMetadataContentLengthIsAlreadyKnownBeforeSend(): void
     {
         $_SERVER['HTTP_RANGE'] = 'bytes=2-6';

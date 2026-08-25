@@ -9,7 +9,6 @@ use Moudarir\Downloader\Enums\ResponseAction;
 use Moudarir\Downloader\ETag\DownloadETag;
 use Moudarir\Downloader\Exceptions\DownloadException;
 use Moudarir\Downloader\Http\DownloadHeaders;
-use Moudarir\Downloader\Http\DownloadPreconditions;
 use Moudarir\Downloader\Http\DownloadRequest;
 use Moudarir\Downloader\Http\DownloadResponse;
 use Moudarir\Downloader\Resources\DownloadData;
@@ -98,36 +97,7 @@ final readonly class Download
             throw DownloadException::operationNotSupportedOnData($this->responseAction->value);
         }
 
-        $result = $this->evaluatePreconditions();
-
-        if ($result !== null) {
-            return $result;
-        }
-
         return DownloadResponse::create(
-            $this->headers,
-            $this->resource,
-            $this->request,
-            $this->responseAction,
-            $this->etag,
-            $this->config,
-        );
-    }
-
-    private function evaluatePreconditions(): ?DownloadResponse
-    {
-        $result = DownloadPreconditions::evaluate(
-            $this->request,
-            $this->resource,
-            $this->etag
-        );
-
-        if ($result->isOk()) {
-            return null;
-        }
-
-        return DownloadResponse::precondition(
-            $result->getStatusCode(),
             $this->headers,
             $this->resource,
             $this->request,

@@ -34,29 +34,6 @@ final readonly class DownloadResponse
     {
     }
 
-    public static function precondition(
-        StatusCode $statusCode,
-        DownloadHeaders $headers,
-        DownloadResource $resource,
-        DownloadRequest $request,
-        ResponseAction $responseAction,
-        DownloadETag $etag,
-        DownloadConfig $config = new DownloadConfig(),
-    ): self
-    {
-        return new self(
-            $headers,
-            $resource,
-            $request,
-            $responseAction,
-            $etag,
-            $statusCode,
-            0,
-            null,
-            $config,
-        );
-    }
-
     /**
      * @throws DownloadException
      */
@@ -69,6 +46,26 @@ final readonly class DownloadResponse
         DownloadConfig $config = new DownloadConfig(),
     ): self
     {
+        $result = DownloadPreconditions::evaluate(
+            $request,
+            $resource,
+            $etag
+        );
+
+        if ($result->isOk() === false) {
+            return new self(
+                $headers,
+                $resource,
+                $request,
+                $responseAction,
+                $etag,
+                $result->getStatusCode(),
+                0,
+                null,
+                $config,
+            );
+        }
+
         $statusCode = StatusCode::OK;
         $contentType = $resource->getMime();
         $contentLength = $resource->getFilesize();
