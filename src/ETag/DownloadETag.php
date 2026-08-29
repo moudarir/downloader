@@ -112,7 +112,7 @@ final readonly class DownloadETag
 
     private static function mtimeStrategy(DownloadResource $resource): string
     {
-        return sprintf('%x-%x', $resource->getLastModified() ?? 0, $resource->getFilesize());
+        return sprintf('%x-%x', $resource->getLastModified(), $resource->getFilesize());
     }
 
     private static function inodeStrategy(DownloadResource $resource): ?string
@@ -123,6 +123,6 @@ final readonly class DownloadETag
             return null;
         }
 
-        return sprintf('%x-%x-%x', $inode, $resource->getLastModified() ?? 0, $resource->getFilesize());
+        return sprintf('%x-%x-%x', $inode, $resource->getLastModified(), $resource->getFilesize());
     }
 }

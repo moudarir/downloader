@@ -4,31 +4,10 @@ declare(strict_types=1);
 
 namespace Moudarir\Downloader\Helpers;
 
-use Moudarir\Downloader\DownloadConfig;
 use Moudarir\Downloader\Enums\ContentDisposition;
-use Moudarir\Downloader\Exceptions\DownloadException;
-use Moudarir\MimeDetector\Exceptions\MimeTypeException;
-use Moudarir\MimeDetector\MimeType;
 
 final class FileHelper
 {
-
-    /**
-     * @throws DownloadException
-     */
-    public static function detectMimeType(string $filepath, true|string $mime): string
-    {
-        if (is_string($mime)) {
-            $mime = trim($mime);
-            return $mime !== '' ? $mime : DownloadConfig::DEFAULT_MIME;
-        }
-
-        try {
-            return MimeType::detect($filepath)->value();
-        } catch (MimeTypeException $exception) {
-            throw DownloadException::generic($exception->getMessage());
-        }
-    }
 
     /**
      * The filename parameter contains an ASCII fallback for clients

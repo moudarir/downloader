@@ -8,8 +8,10 @@ use Moudarir\Downloader\DownloadConfig;
 use Moudarir\Downloader\Enums\ETagStrategy;
 use Moudarir\Downloader\Exceptions\DownloadException;
 use Moudarir\Downloader\Helpers\CommonHelper;
-use Moudarir\Downloader\Helpers\FileHelper;
 use Moudarir\Downloader\Traits\StreamOutputTrait;
+use Moudarir\MimeDetector\Detector;
+use Moudarir\MimeDetector\Exceptions\MimeDetectorException;
+use Moudarir\MimeDetector\FileMetadata;
 use ValueError;
 
 final readonly class DownloadFile implements DownloadResource
@@ -31,9 +33,8 @@ final readonly class DownloadFile implements DownloadResource
     private function __construct(
         private string $filepath,
         private string $filename,
-        private int $filesize,
         private string $mime,
-        private ?int $lastModified,
+        private FileMetadata $metadata,
         private ?string $internalUri = null,
     ) {
     }
@@ -50,27 +51,34 @@ final readonly class DownloadFile implements DownloadResource
     {
         $filepath = CommonHelper::nullIfEmpty($filepath);
 
-        if ($filepath === null || !is_file($filepath) || !is_readable($filepath)) {
+        if ($filepath === null) {
             throw DownloadException::filepathNotFound();
         }
 
-        if (($filesize = filesize($filepath)) === false) {
-            throw DownloadException::filesizeIssue();
+        try {
+            $result = Detector::detect($filepath);
+            $metadata = $result->metadata();
+
+            $filename = CommonHelper::nullIfEmpty($filename);
+            $filename = $filename === null ? $metadata->basename() : $filename;
+
+            if (is_string($mime)) {
+                $mime = trim($mime);
+                $mimeType = $mime !== '' ? $mime : $result->value();
+            } else {
+                $mimeType = $result->value();
+            }
+
+            return new self(
+                $filepath,
+                $filename,
+                $mimeType,
+                $metadata,
+                $internalUri
+            );
+        } catch (MimeDetectorException $exception) {
+            throw DownloadException::generic("Error encountered", $exception);
         }
-
-        $filename = CommonHelper::nullIfEmpty($filename);
-        $filename = $filename === null
-            ? pathinfo($filepath, PATHINFO_BASENAME)
-            : $filename;
-
-        return new self(
-            $filepath,
-            $filename,
-            $filesize,
-            FileHelper::detectMimeType($filepath, $mime),
-            ($lastModified = filemtime($filepath)) === false ? null : $lastModified,
-            $internalUri
-        );
     }
 
     public function getFilepath(): string
@@ -85,7 +93,7 @@ final readonly class DownloadFile implements DownloadResource
 
     public function getFilesize(): int
     {
-        return $this->filesize;
+        return $this->metadata->filesize();
     }
 
     public function getMime(): string
@@ -93,9 +101,9 @@ final readonly class DownloadFile implements DownloadResource
         return $this->mime;
     }
 
-    public function getLastModified(): ?int
+    public function getLastModified(): int
     {
-        return $this->lastModified;
+        return $this->metadata->lastModified();
     }
 
     public function getInternalUri(): ?string
@@ -114,21 +122,13 @@ final readonly class DownloadFile implements DownloadResource
 
     public function output(DownloadConfig $config, int $length, int $start = 0): void
     {
-        if (($handle = fopen($this->filepath, 'rb')) === false) {
-            return;
-        }
-
-        try {
-            $this->outputStream(
-                $handle,
-                $length,
-                $start,
-                $config->getBytesPerSecond(),
-                $config->getChunkSize(),
-            );
-        } finally {
-            fclose($handle);
-        }
+        $this->outputStream(
+            $this->metadata->stream(),
+            $length,
+            $start,
+            $config->getBytesPerSecond(),
+            $config->getChunkSize(),
+        );
     }
 
     public function getSupportedETagStrategies(): array

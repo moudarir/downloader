@@ -57,12 +57,16 @@ final readonly class FixtureFile implements DownloadResource
             throw DownloadException::filesizeIssue();
         }
 
+        if (($lastModified = filemtime($filepath)) === false) {
+            throw DownloadException::lastModifiedIssue();
+        }
+
         return new self(
             $filepath,
             $fixture['filename'],
             $filesize,
             $fixture['mime'],
-            ($lastModified = filemtime($filepath)) === false ? null : $lastModified,
+            $lastModified,
             null,
             $strategies
         );

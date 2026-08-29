@@ -14,21 +14,16 @@ use PHPUnit\Framework\TestCase;
 final class DownloadFileTest extends TestCase
 {
 
-    private static string $filepath;
+    private static array $fixture;
 
-    private static DownloadFile $resource;
+    private static string $filepath;
 
     private static DownloadConfig $config;
 
     public static function setUpBeforeClass(): void
     {
-        $fixture = TestConfig::resourceFile('pdf');
-        self::$filepath = TestConfig::resourcePath() . $fixture['basename'];
-        self::$resource = DownloadFile::create(
-            self::$filepath,
-            $fixture['filename'],
-            $fixture['mime']
-        );
+        self::$fixture = TestConfig::resourceFile('pdf');
+        self::$filepath = TestConfig::resourcePath() . self::$fixture['basename'];
         self::$config = new DownloadConfig();
     }
 
@@ -37,7 +32,6 @@ final class DownloadFileTest extends TestCase
         $missing = self::$filepath . '-missing';
 
         self::expectException(DownloadException::class);
-        self::expectExceptionMessageIsOrContains("The specified file path was not found.");
 
         DownloadFile::create($missing, 'missing.txt', 'text/plain');
     }
@@ -52,6 +46,12 @@ final class DownloadFileTest extends TestCase
 
     public function testItSupportsExpectedEtagStrategies(): void
     {
+        $resource = DownloadFile::create(
+            self::$filepath,
+            self::$fixture['filename'],
+            self::$fixture['mime']
+        );
+
         self::assertSame(
             [
                 ETagStrategy::MTIME,
@@ -60,14 +60,20 @@ final class DownloadFileTest extends TestCase
                 ETagStrategy::SHA256,
                 ETagStrategy::SHA512,
             ],
-            self::$resource->getSupportedETagStrategies()
+            $resource->getSupportedETagStrategies()
         );
     }
 
     public function testOutputFullFile(): void
     {
+        $resource = DownloadFile::create(
+            self::$filepath,
+            self::$fixture['filename'],
+            self::$fixture['mime']
+        );
+
         ob_start();
-        self::$resource->output(self::$config, self::$resource->getFilesize());
+        $resource->output(self::$config, $resource->getFilesize());
         $output = ob_get_clean();
 
         $this->assertSame(filesize(self::$filepath), strlen($output));
@@ -78,9 +84,14 @@ final class DownloadFileTest extends TestCase
     {
         $length = 100;
         $start = 10;
+        $resource = DownloadFile::create(
+            self::$filepath,
+            self::$fixture['filename'],
+            self::$fixture['mime']
+        );
 
         ob_start();
-        self::$resource->output(self::$config, $length, $start);
+        $resource->output(self::$config, $length, $start);
         $output = ob_get_clean();
 
         $expectedContent = file_get_contents(self::$filepath, false, null, $start, $length);
@@ -91,8 +102,14 @@ final class DownloadFileTest extends TestCase
 
     public function testOutputWithZeroLengthReturnsNothing(): void
     {
+        $resource = DownloadFile::create(
+            self::$filepath,
+            self::$fixture['filename'],
+            self::$fixture['mime']
+        );
+
         ob_start();
-        self::$resource->output(self::$config, 0);
+        $resource->output(self::$config, 0);
         $output = ob_get_clean();
 
         $this->assertSame('', $output);

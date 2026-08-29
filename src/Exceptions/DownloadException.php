@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Moudarir\Downloader\Exceptions;
 
 use Exception;
+use Throwable;
 
 final class DownloadException extends Exception
 {
@@ -17,6 +18,11 @@ final class DownloadException extends Exception
     public static function filesizeIssue(): self
     {
         return new self("Unable to determine the file size.");
+    }
+
+    public static function lastModifiedIssue(): self
+    {
+        return new self("Unable to determine the file last modified.");
     }
 
     public static function invalidHeaderName(string $name): self
@@ -103,8 +109,8 @@ final class DownloadException extends Exception
         return new self("Max range items must be greater than 0.");
     }
 
-    public static function generic(string $message): self
+    public static function generic(string $message, ?Throwable $previous = null): self
     {
-        return new self($message);
+        return new self($message, previous: $previous);
     }
 }

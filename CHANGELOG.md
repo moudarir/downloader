@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [3.2.0] - 2026-08-29
+
+### Refactored
+
+* The file metadata like `filesize`, `lastmodified` and `stream` resource are now got from `FileMetadata` (moudarir/mime-detector);
+* The method `DownloadFile::output()` no longer create a `stream` resource, `FileMetadata::stream()` used instead;
+
+### Updated
+
+* Update tests to reflect made changes.
+
+### Removed
+
+* The method `FileHelper::detectMimeType()` is no longer used.
+
 ## [3.1.2] - 2026-08-25
 
 ### Refactored
