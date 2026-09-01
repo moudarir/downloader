@@ -21,7 +21,7 @@
   ],
   "require": {
     "php": "^8.4",
-    "moudarir/mime-detector": "^1.0"
+    "moudarir/file": "^1.0"
   },
   "autoload": {
     "psr-4" : {

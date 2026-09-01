@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [3.3.0] - 2026-09-02
+
+### Changed
+
+* Replace `moudarir/mime-detector` with `moudarir/file` package for file resource management and MIME type detection.
+* Change the `$mime` parameter's type of `Download::fromFile()` and `DownloadFile::create()` to `?MimeType`.
+* Use `Moudarir\File\Enum\MimeType` for MIME type definitions, including `MimeType::OCTET_STREAM` as the default MIME type.
+* Update examples, tests and documentation to use `moudarir/file` and `MimeType`.
+
 ## [3.2.0] - 2026-08-29
 
 ### Refactored

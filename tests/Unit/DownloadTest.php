@@ -9,6 +9,7 @@ use Moudarir\Downloader\Enums\ETagStrategy;
 use Moudarir\Downloader\Enums\ResponseAction;
 use Moudarir\Downloader\Enums\StatusCode;
 use Moudarir\Downloader\Exceptions\DownloadException;
+use Moudarir\File\Enum\MimeType;
 use PHPUnit\Framework\TestCase;
 
 final class DownloadTest extends TestCase
@@ -56,11 +57,22 @@ final class DownloadTest extends TestCase
 
         $metadata = $response->metadata();
 
-        self::assertSame(ResponseAction::DEFAULT, $metadata->responseAction());
-        self::assertSame(StatusCode::OK, $metadata->statusCode());
-        self::assertSame(13, $metadata->contentLength());
-        self::assertSame('text/plain', $metadata->contentType());
-        self::assertSame('hello.txt', $metadata->filename());
+        self::assertSame(
+            [
+                ResponseAction::DEFAULT,
+                StatusCode::OK,
+                13,
+                'text/plain',
+                'hello.txt',
+            ],
+            [
+                $metadata->responseAction(),
+                $metadata->statusCode(),
+                $metadata->contentLength(),
+                $metadata->contentType(),
+                $metadata->filename(),
+            ],
+        );
     }
 
     public function testFromDataCreatesPartialResponse(): void
@@ -76,25 +88,38 @@ final class DownloadTest extends TestCase
 
         $metadata = $response->metadata();
 
-        self::assertSame(ResponseAction::PARTIAL, $metadata->responseAction());
-        self::assertSame(StatusCode::PARTIAL_CONTENT, $metadata->statusCode());
-        self::assertSame(5, $metadata->contentLength());
         self::assertTrue($metadata->hasRange());
         self::assertTrue($metadata->rangeIsPartial());
+        self::assertSame(
+            [ResponseAction::PARTIAL, StatusCode::PARTIAL_CONTENT, 5],
+            [$metadata->responseAction(), $metadata->statusCode(), $metadata->contentLength()],
+        );
     }
 
     public function testFromFileCreatesDefaultResponse(): void
     {
-        $response = Download::fromFile($this->filepath, 'hello.txt', 'text/plain');
+        $response = Download::fromFile($this->filepath, 'hello.txt', MimeType::TEXT_PLAIN);
 
         $metadata = $response->metadata();
 
-        self::assertSame(ResponseAction::DEFAULT, $metadata->responseAction());
-        self::assertSame(StatusCode::OK, $metadata->statusCode());
-        self::assertSame(filesize($this->filepath), $metadata->filesize());
-        self::assertSame('hello.txt', $metadata->filename());
-        self::assertSame('text/plain', $metadata->mimeType());
-        self::assertSame($this->filepath, $metadata->filepath());
+        self::assertSame(
+            [
+                ResponseAction::DEFAULT,
+                StatusCode::OK,
+                filesize($this->filepath),
+                'text/plain',
+                'hello.txt',
+                $this->filepath,
+            ],
+            [
+                $metadata->responseAction(),
+                $metadata->statusCode(),
+                $metadata->filesize(),
+                $metadata->mimeType(),
+                $metadata->filename(),
+                $metadata->filepath(),
+            ],
+        );
     }
 
     public function testFromFileCreatesPartialResponse(): void
@@ -104,16 +129,17 @@ final class DownloadTest extends TestCase
         $response = Download::fromFile(
             $this->filepath,
             'hello.txt',
-            'text/plain',
+            MimeType::TEXT_PLAIN,
             ResponseAction::PARTIAL
         );
 
         $metadata = $response->metadata();
 
-        self::assertSame(ResponseAction::PARTIAL, $metadata->responseAction());
-        self::assertSame(StatusCode::PARTIAL_CONTENT, $metadata->statusCode());
-        self::assertSame(5, $metadata->contentLength());
         self::assertTrue($metadata->rangeIsPartial());
+        self::assertSame(
+            [ResponseAction::PARTIAL, StatusCode::PARTIAL_CONTENT, 5],
+            [$metadata->responseAction(), $metadata->statusCode(), $metadata->contentLength()]
+        );
     }
 
     public function testFromFileSupportsAutomaticMimeDetection(): void
@@ -125,7 +151,7 @@ final class DownloadTest extends TestCase
         file_put_contents($phpFile, "<?php echo 'Hello';");
 
         try {
-            $response = Download::fromFile($phpFile, 'test.php', true);
+            $response = Download::fromFile($phpFile, 'test.php');
 
             self::assertSame('application/x-httpd-php', $response->metadata()->mimeType());
         } finally {
@@ -167,7 +193,7 @@ final class DownloadTest extends TestCase
         Download::fromFile(
             $this->filepath,
             'hello.txt',
-            'text/plain',
+            MimeType::TEXT_PLAIN,
             ResponseAction::X_ACCEL_REDIRECT
         );
     }
@@ -177,7 +203,7 @@ final class DownloadTest extends TestCase
         $response = Download::fromFile(
             $this->filepath,
             'hello.txt',
-            'text/plain',
+            MimeType::TEXT_PLAIN,
             ResponseAction::X_ACCEL_REDIRECT,
             '/protected/download'
         );
@@ -190,12 +216,14 @@ final class DownloadTest extends TestCase
         $response = Download::fromFile(
             $this->filepath,
             'hello.txt',
-            'text/plain',
+            MimeType::TEXT_PLAIN,
             ResponseAction::X_SEND_FILE
         );
 
-        self::assertSame(ResponseAction::X_SEND_FILE, $response->metadata()->responseAction());
-        self::assertSame(filesize($this->filepath), $response->metadata()->contentLength());
+        self::assertSame(
+            [ResponseAction::X_SEND_FILE, filesize($this->filepath)],
+            [$response->metadata()->responseAction(), $response->metadata()->contentLength()]
+        );
     }
 
     public function testFromFileSupportsExplicitETagStrategy(): void
@@ -203,7 +231,7 @@ final class DownloadTest extends TestCase
         $response = Download::fromFile(
             $this->filepath,
             'hello.txt',
-            'text/plain',
+            MimeType::TEXT_PLAIN,
             ResponseAction::DEFAULT,
             null,
             ETagStrategy::SHA256
@@ -235,8 +263,10 @@ final class DownloadTest extends TestCase
         $response = Download::fromData('Hello, World!', 'hello.txt', 'text/plain');
         $metadata = $response->metadata();
 
-        self::assertSame(StatusCode::NOT_MODIFIED, $metadata->statusCode());
-        self::assertSame(0, $metadata->contentLength());
+        self::assertSame(
+            [StatusCode::NOT_MODIFIED, 0],
+            [$metadata->statusCode(), $metadata->contentLength()]
+        );
     }
 
     public function testItReturnsPreconditionFailedWhenIfMatchDoesNotMatch(): void
@@ -251,8 +281,10 @@ final class DownloadTest extends TestCase
 
         $metadata = $response->metadata();
 
-        self::assertSame(StatusCode::PRECONDITION_FAILED, $metadata->statusCode());
-        self::assertSame(0, $metadata->contentLength());
+        self::assertSame(
+            [StatusCode::PRECONDITION_FAILED, 0],
+            [$metadata->statusCode(), $metadata->contentLength()]
+        );
     }
 
     public function testItUsesDefaultGetRequestWhenRequestMethodIsAbsent(): void

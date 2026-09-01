@@ -14,6 +14,7 @@ use Moudarir\Downloader\Http\DownloadResponse;
 use Moudarir\Downloader\Resources\DownloadData;
 use Moudarir\Downloader\Resources\DownloadFile;
 use Moudarir\Downloader\Resources\DownloadResource;
+use Moudarir\File\Enum\MimeType;
 
 final readonly class Download
 {
@@ -47,7 +48,7 @@ final readonly class Download
     public static function fromFile(
         string $filepath,
         ?string $filename = null,
-        true|string $mime = '',
+        ?MimeType $mime = null,
         ResponseAction $responseAction = ResponseAction::DEFAULT,
         ?string $xAccelRedirectUri = null,
         ?ETagStrategy $strategy = null,

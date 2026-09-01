@@ -65,7 +65,7 @@ final readonly class FixtureFile implements DownloadResource
             $filepath,
             $fixture['filename'],
             $filesize,
-            $fixture['mime'],
+            $fixture['mime']->value,
             $lastModified,
             null,
             $strategies

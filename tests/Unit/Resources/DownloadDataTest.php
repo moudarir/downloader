@@ -29,7 +29,7 @@ final class DownloadDataTest extends TestCase
         self::$resource = DownloadData::create(
             self::$fixture['content'],
             self::$fixture['filename'],
-            self::$fixture['mime']
+            self::$fixture['mime']->value
         );
         self::$config = new DownloadConfig();
     }
@@ -39,7 +39,7 @@ final class DownloadDataTest extends TestCase
         self::expectException(DownloadException::class);
         self::expectExceptionMessageIsOrContains("The data source cannot be empty.");
 
-        DownloadData::create('', self::$fixture['filename'], self::$fixture['mime']);
+        DownloadData::create('', self::$fixture['filename'], self::$fixture['mime']->value);
     }
 
     public function testItThrowsWhenFilenameIsEmpty(): void
@@ -47,13 +47,13 @@ final class DownloadDataTest extends TestCase
         self::expectException(DownloadException::class);
         self::expectExceptionMessageIsOrContains("A filename is required when downloading data from memory.");
 
-        DownloadData::create('lorem ipsum', '', self::$fixture['mime']);
+        DownloadData::create('lorem ipsum', '', self::$fixture['mime']->value);
     }
 
     public function testItReturnsCorrectGetters(): void
     {
         self::assertSame(self::$fixture['filename'], self::$resource->getFilename());
-        self::assertSame(self::$fixture['mime'], self::$resource->getMime());
+        self::assertSame(self::$fixture['mime']->value, self::$resource->getMime());
         self::assertSame(strlen(self::$fixture['content']), self::$resource->getFilesize());
         self::assertNull(self::$resource->getLastModified());
         self::assertNull(self::$resource->getFilepath());

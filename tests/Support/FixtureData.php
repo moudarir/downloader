@@ -10,6 +10,7 @@ use Moudarir\Downloader\Enums\ETagStrategy;
 use Moudarir\Downloader\Helpers\FileHelper;
 use Moudarir\Downloader\Resources\DownloadResource;
 use Moudarir\Downloader\Traits\StreamOutputTrait;
+use Moudarir\File\Enum\MimeType;
 use ValueError;
 
 final readonly class FixtureData implements DownloadResource
@@ -42,7 +43,7 @@ final readonly class FixtureData implements DownloadResource
         return new self(
             $fixture['content'],
             $fixture['filename'],
-            $fixture['mime'],
+            $fixture['mime']->value,
             $strategies
         );
     }
@@ -64,7 +65,7 @@ final readonly class FixtureData implements DownloadResource
 
     public function getMime(): string
     {
-        return $this->mime ?: DownloadConfig::DEFAULT_MIME;
+        return $this->mime ?: MimeType::OCTET_STREAM->value;
     }
 
     public function getLastModified(): ?int

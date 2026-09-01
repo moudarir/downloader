@@ -24,8 +24,10 @@ A lightweight and modern PHP library for streaming files and in-memory data with
 
 ## Requirements
 
-- PHP 8.4+
-- (optional) `mod_xsendfile` Apache module to download files with `ResponseAction::X_SEND_FILE` method. 
+- PHP 8.4+;
+- `fileinfo` extension for MIME type detection;
+- `zip` extension for MIME type detection;
+- (optional) `mod_xsendfile` Apache module to download files with `ResponseAction::X_SEND_FILE` method.
 
 
 ## Installation
@@ -38,15 +40,14 @@ composer require moudarir/downloader
 ## Usage
 
 > `$mime` accepts:
-> - `true` to automatically detect the MIME type from the file contents.
-> - A non-empty string to explicitly specify the MIME type.
-> - An empty string to use `DownloadConfig::DEFAULT_MIME`.
+> - `null` to automatically detect the MIME type from the file contents.
+> - Or, a `MimeType` enum.
 
 
 ### Download a file
 
 ```php
-$response = Download::fromFile('/path/to/file.pdf', mime: 'application/pdf');
+$response = Download::fromFile('/path/to/file.pdf', mime: MimeType::PDF);
 
 $response->send();
 ```
@@ -55,7 +56,7 @@ $response->send();
 ### Download with a custom filename
 
 ```php
-$response = Download::fromFile('/path/to/file.pdf', 'document.pdf', 'application/pdf');
+$response = Download::fromFile('/path/to/file.pdf', 'document.pdf', MimeType::PDF);
 
 $response->send();
 ```
@@ -64,7 +65,7 @@ $response->send();
 ### Inline response
 
 ```php
-$response = Download::fromFile('/path/to/file.pdf', mime: 'application/pdf')->inline();
+$response = Download::fromFile('/path/to/file.pdf', mime: MimeType::PDF)->inline();
 
 $response->send();
 ```
@@ -73,7 +74,7 @@ $response->send();
 ### Partial content / Range requests
 
 ```php
-$response = Download::fromFile('/path/to/video.mp4', 'video.mp4', 'video/mp4', ResponseAction::PARTIAL)
+$response = Download::fromFile('/path/to/video.mp4', 'video.mp4', MimeType::MP4, ResponseAction::PARTIAL)
     ->inline();
 
 $response->send();
@@ -149,7 +150,7 @@ $config = new DownloadConfig()
 $response = Download::fromFile(
     '/path/to/video.mp4',
     'video.mp4',
-    'video/mp4',
+    MimeType::MP4,
     config: $config,
 );
 
@@ -195,8 +196,9 @@ Response metadata can be inspected before sending the response through `Download
 
 ```php
 use Moudarir\Downloader\Enums\StatusCode;
+use Moudarir\File\Enum\MimeType;
 
-$response = Download::fromFile('/path/to/file.pdf', mime: 'application/pdf');
+$response = Download::fromFile('/path/to/file.pdf', mime: MimeType::PDF);
 
 $metadata = $response->metadata();
 

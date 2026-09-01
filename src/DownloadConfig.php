@@ -9,8 +9,6 @@ use Moudarir\Downloader\Exceptions\DownloadException;
 final readonly class DownloadConfig
 {
 
-    public const string DEFAULT_MIME = 'application/octet-stream';
-
     public const int CHUNK_SIZE = 131_072; // Read buffer size in bytes. Default: 128 KB
 
     public const int MAX_RANGE_ITEMS = 10; // Protection against Denial of Service attacks (DoS)

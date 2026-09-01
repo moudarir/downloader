@@ -9,6 +9,7 @@ use Moudarir\Downloader\Enums\ETagStrategy;
 use Moudarir\Downloader\Exceptions\DownloadException;
 use Moudarir\Downloader\Resources\DownloadFile;
 use Moudarir\Downloader\Tests\Support\TestConfig;
+use Moudarir\File\Enum\MimeType;
 use PHPUnit\Framework\TestCase;
 
 final class DownloadFileTest extends TestCase
@@ -33,7 +34,7 @@ final class DownloadFileTest extends TestCase
 
         self::expectException(DownloadException::class);
 
-        DownloadFile::create($missing, 'missing.txt', 'text/plain');
+        DownloadFile::create($missing, 'missing.txt', MimeType::TEXT_PLAIN);
     }
 
     public function testItThrowsWhenFilepathIsEmpty(): void
@@ -41,7 +42,7 @@ final class DownloadFileTest extends TestCase
         self::expectException(DownloadException::class);
         self::expectExceptionMessageIsOrContains("The specified file path was not found.");
 
-        DownloadFile::create('', 'test.txt', 'text/plain');
+        DownloadFile::create('', 'test.txt', MimeType::TEXT_PLAIN);
     }
 
     public function testItSupportsExpectedEtagStrategies(): void

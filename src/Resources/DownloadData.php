@@ -9,6 +9,7 @@ use Moudarir\Downloader\Enums\ETagStrategy;
 use Moudarir\Downloader\Exceptions\DownloadException;
 use Moudarir\Downloader\Helpers\CommonHelper;
 use Moudarir\Downloader\Traits\StreamOutputTrait;
+use Moudarir\File\Enum\MimeType;
 use ValueError;
 
 final readonly class DownloadData implements DownloadResource
@@ -52,7 +53,7 @@ final readonly class DownloadData implements DownloadResource
 
     public function getMime(): string
     {
-        return $this->mime ?: DownloadConfig::DEFAULT_MIME;
+        return $this->mime ?: MimeType::OCTET_STREAM->value;
     }
 
     public function getFilesize(): int

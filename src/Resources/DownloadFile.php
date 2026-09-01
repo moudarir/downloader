@@ -9,9 +9,11 @@ use Moudarir\Downloader\Enums\ETagStrategy;
 use Moudarir\Downloader\Exceptions\DownloadException;
 use Moudarir\Downloader\Helpers\CommonHelper;
 use Moudarir\Downloader\Traits\StreamOutputTrait;
-use Moudarir\MimeDetector\Detector;
-use Moudarir\MimeDetector\Exceptions\MimeDetectorException;
-use Moudarir\MimeDetector\FileMetadata;
+use Moudarir\File\Enum\MimeType;
+use Moudarir\File\Exceptions\FileResourceException;
+use Moudarir\File\Exceptions\MimeDetectionException;
+use Moudarir\File\File;
+use Moudarir\File\FileResource;
 use ValueError;
 
 final readonly class DownloadFile implements DownloadResource
@@ -31,11 +33,11 @@ final readonly class DownloadFile implements DownloadResource
     ];
 
     private function __construct(
-        private string $filepath,
-        private string $filename,
-        private string $mime,
-        private FileMetadata $metadata,
-        private ?string $internalUri = null,
+        private string       $filepath,
+        private string       $filename,
+        private string       $mime,
+        private FileResource $resource,
+        private ?string      $internalUri = null,
     ) {
     }
 
@@ -45,7 +47,7 @@ final readonly class DownloadFile implements DownloadResource
     public static function create(
         string $filepath,
         ?string $filename = null,
-        true|string $mime = '',
+        ?MimeType $mime = null,
         ?string $internalUri = null,
     ): self
     {
@@ -56,27 +58,20 @@ final readonly class DownloadFile implements DownloadResource
         }
 
         try {
-            $result = Detector::detect($filepath);
-            $metadata = $result->metadata();
+            $file = File::create($filepath, $mime);
+            $resource = $file->resource();
 
             $filename = CommonHelper::nullIfEmpty($filename);
-            $filename = $filename === null ? $metadata->basename() : $filename;
-
-            if (is_string($mime)) {
-                $mime = trim($mime);
-                $mimeType = $mime !== '' ? $mime : $result->value();
-            } else {
-                $mimeType = $result->value();
-            }
+            $filename = $filename === null ? $resource->basename() : $filename;
 
             return new self(
                 $filepath,
                 $filename,
-                $mimeType,
-                $metadata,
+                $file->detection()->mimeTypeValue(),
+                $resource,
                 $internalUri
             );
-        } catch (MimeDetectorException $exception) {
+        } catch (FileResourceException|MimeDetectionException $exception) {
             throw DownloadException::generic("Error encountered", $exception);
         }
     }
@@ -93,7 +88,7 @@ final readonly class DownloadFile implements DownloadResource
 
     public function getFilesize(): int
     {
-        return $this->metadata->filesize();
+        return $this->resource->filesize();
     }
 
     public function getMime(): string
@@ -103,7 +98,7 @@ final readonly class DownloadFile implements DownloadResource
 
     public function getLastModified(): int
     {
-        return $this->metadata->lastModified();
+        return $this->resource->lastModified();
     }
 
     public function getInternalUri(): ?string
@@ -123,7 +118,7 @@ final readonly class DownloadFile implements DownloadResource
     public function output(DownloadConfig $config, int $length, int $start = 0): void
     {
         $this->outputStream(
-            $this->metadata->stream(),
+            $this->resource->stream(),
             $length,
             $start,
             $config->getBytesPerSecond(),
